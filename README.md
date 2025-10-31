@@ -12,7 +12,7 @@ O objetivo é defender o castelo e gerenciar os recursos disponíveis, garantind
 
 ## 🧰 Tecnologias e Ferramentas
 
-- C#: Linguagem usada na programação das mecânicas do jogo, incluindo IA dos inimigos, controle das torres e lógica de colisões.
+- C: Linguagem usada na programação das mecânicas do jogo, incluindo IA dos inimigos, controle das torres e lógica de colisões.
 
 ---
 
