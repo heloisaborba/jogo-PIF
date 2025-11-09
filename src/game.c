@@ -12,7 +12,7 @@ Vector2 path[MAX_WAYPOINTS] = {
     {50, 440},  
 
     // Ponto 1: Entra na seção reta (X=150)
-    {150, 450}, 
+    {150, 440}, 
 
     // Ponto 2: Meio da seção reta (Y é quase o mesmo)
     {400, 450}, // Y ajustado para 450 (era 480/540)
