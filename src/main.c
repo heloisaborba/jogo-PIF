@@ -3,86 +3,12 @@
 #include "enemy.h"
 #include "tower.h"
 #include "menu.h"
+#include "game.h"  // ADICIONE ESTA LINHA
+#include <stdio.h>  // Para printf
 
 // Tamanho da tela
 const int screenWidth = 800;
 const int screenHeight = 600;
-
-// Background
-Texture2D background;
-
-// Herói
-Hero hero;
-
-// Inimigos
-#define MAX_ENEMIES 10
-Enemy enemies[MAX_ENEMIES];
-int enemyCount = 0;
-
-// Torres (pode adicionar futuramente tiros)
-#define MAX_TOWERS 5
-Tower towers[MAX_TOWERS];
-int towerCount = 0;
-
-// Inicializar jogo
-void InitGame() {
-    // Janela e FPS já iniciados no menu, não repetir InitWindow
-    background = LoadTexture("resources/background.png");
-
-    // Inicializar herói
-    hero = InitHero(100, 300);
-
-    // Inicializar inimigos
-    enemyCount = 0;
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        enemies[i] = InitEnemy(-50 * i, 300);
-        enemyCount++;
-    }
-
-    // Inicializar torres (exemplo)
-    towers[0] = InitTower(400, 300);
-    towerCount = 1;
-}
-
-// Atualizar jogo
-void UpdateGame() {
-    UpdateHero(&hero);
-
-    for (int i = 0; i < enemyCount; i++) {
-        UpdateEnemy(&enemies[i]);
-    }
-
-    // Futuro: atualizar torres, tiros, colisões etc
-}
-
-// Desenhar jogo
-void DrawGame() {
-    BeginDrawing();
-    ClearBackground(RAYWHITE);
-
-    // Desenhar background
-    DrawTexture(background, 0, 0, WHITE);
-
-    // Desenhar herói
-    DrawHero(hero);
-
-    // Desenhar inimigos
-    for (int i = 0; i < enemyCount; i++) {
-        DrawEnemy(enemies[i]);
-    }
-
-    // Desenhar torres
-    for (int i = 0; i < towerCount; i++) {
-        DrawTower(towers[i]);
-    }
-
-    EndDrawing();
-}
-
-// Fechar jogo
-void CloseGame() {
-    UnloadTexture(background);
-}
 
 // ==================== MAIN ====================
 
@@ -90,25 +16,63 @@ int main(void) {
     InitWindow(screenWidth, screenHeight, "Tower Defense Medieval");
     SetTargetFPS(60);
 
-    while (true) {
-        MenuOption option = ShowMenu();
+    printf("DEBUG: Janela inicializada, entrando no loop principal\n");
 
-        if (option == MENU_EXIT)
+    while (true) {
+        printf("DEBUG: Chamando ShowMenu()\n");
+        MenuOption option = ShowMenu();
+        printf("DEBUG: ShowMenu() retornou: %d\n", option);
+
+        if (option == MENU_EXIT) {
+            printf("DEBUG: Opção EXIT selecionada, saindo...\n");
             break;
+        }
 
         else if (option == MENU_START) {
-            InitGame();
-
-            while (!WindowShouldClose()) {
-                if (IsKeyPressed(KEY_ESCAPE)) break; // voltar ao menu
-                UpdateGame();
-                DrawGame();
+            printf("DEBUG: Opção START selecionada, iniciando jogo...\n");
+            
+            // TESTE SIMPLES: Mostrar tela de carregamento primeiro
+            printf("DEBUG: Mostrando tela de teste...\n");
+            int frames = 0;
+            
+            while (!WindowShouldClose() && frames < 30) { // Executa por ~0.5 segundo
+                frames++;
+                
+                BeginDrawing();
+                ClearBackground(GREEN);
+                DrawText("CARREGANDO JOGO...", 200, 250, 30, BLACK);
+                DrawText(TextFormat("Frame: %d/30", frames), 200, 300, 20, DARKGRAY);
+                EndDrawing();
+                
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    printf("DEBUG: ESC pressionado durante carregamento\n");
+                    break;
+                }
             }
+            
+            // Se o teste passou, iniciar o jogo real
+            if (frames >= 30) {
+                printf("DEBUG: Iniciando jogo completo...\n");
+                InitGame();
 
-            CloseGame();
+                while (!WindowShouldClose()) {
+                    if (IsKeyPressed(KEY_ESCAPE)) {
+                        printf("DEBUG: ESC pressionado, voltando ao menu\n");
+                        break;
+                    }
+                    UpdateGame();
+                    DrawGame();
+                }
+
+                CloseGame();
+                printf("DEBUG: Jogo fechado, voltando ao menu\n");
+            } else {
+                printf("DEBUG: Carregamento interrompido, voltando ao menu\n");
+            }
         }
 
         else if (option == MENU_HOW_TO_PLAY) {
+            printf("DEBUG: Opção HOW_TO_PLAY selecionada\n");
             while (!WindowShouldClose()) {
                 BeginDrawing();
                 ClearBackground(DARKBLUE);
@@ -118,11 +82,15 @@ int main(void) {
                 DrawText("Press ESC to return", 250, 330, 20, YELLOW);
                 EndDrawing();
 
-                if (IsKeyPressed(KEY_ESCAPE)) break;
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    printf("DEBUG: ESC pressionado em HOW_TO_PLAY\n");
+                    break;
+                }
             }
         }
 
         else if (option == MENU_RANKING) {
+            printf("DEBUG: Opção RANKING selecionada\n");
             while (!WindowShouldClose()) {
                 BeginDrawing();
                 ClearBackground(DARKPURPLE);
@@ -132,11 +100,19 @@ int main(void) {
                 DrawText("Press ESC to return", 300, 330, 20, YELLOW);
                 EndDrawing();
 
-                if (IsKeyPressed(KEY_ESCAPE)) break;
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    printf("DEBUG: ESC pressionado em RANKING\n");
+                    break;
+                }
             }
+        }
+        
+        else {
+            printf("DEBUG: Opção desconhecida: %d\n", option);
         }
     }
 
+    printf("DEBUG: Fechando janela...\n");
     CloseWindow();
     return 0;
 }
