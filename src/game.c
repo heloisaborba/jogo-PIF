@@ -1,124 +1,108 @@
+// game.c
+
 #include "raylib.h"
-#include "game.h"
-#include "hero.h"
 #include "enemy.h"
-#include "tower.h"
+#include "game.h"
 #include <stdio.h>
 
-// Variáveis globais do jogo
-Texture2D background;
+#define MAX_ENEMIES 5
 
-// Herói
-Hero hero;
+Vector2 path[MAX_WAYPOINTS] = {
+// INÍCIO - NÃO ALTERAR, parte perfeita
+    {50, 440},  
 
-// Inimigos
-#define MAX_ENEMIES 10
-Enemy enemies[MAX_ENEMIES];
-int enemyCount = 0;
+    // Ponto 1: Entra na seção reta (X=150)
+    {150, 450}, 
 
-// Torres
-#define MAX_TOWERS 5
-Tower towers[MAX_TOWERS];
-int towerCount = 0;
+    // Ponto 2: Meio da seção reta (Y é quase o mesmo)
+    {400, 450}, // Y ajustado para 450 (era 480/540)
 
-// Inicializar jogo
-void InitGame(void) {
-    printf("DEBUG: Inicializando jogo...\n");
+    // Ponto 3: Topo da Coluna Vertical (Início da subida principal)
+    {400, 200}, 
+
+    // Ponto 4: Vira para a seção horizontal superior
+    {650, 200}, 
     
-    // Carregar background JPG
+    // Ponto 5: Curva para a Ponte
+    {700, 180},
+    
+    // Ponto 6: Meio da Ponte
+    {700, 130}, 
+
+    // Ponto 7: Curva final
+    {750, 100}, 
+
+    // Ponto 8: Chegada na Torre (posição final)
+    {780, 100}  // Fim do Array (Índice 8)
+};
+
+static Enemy enemies[MAX_ENEMIES];
+static int enemyCount = 0;
+static Texture2D background;
+static Texture2D towerTexture;
+static int towerHealth = 100;
+
+// Inicialização
+void InitGame(void) {
+    // Carrega as texturas
     background = LoadTexture("resources/background.jpg");
-    if (background.id == 0) {
-        printf("ERRO: Não foi possível carregar background.jpg\n");
-        printf("DEBUG: Verifique se resources/background.jpg existe\n");
-    } else {
-        printf("DEBUG: Background carregado: %dx%d\n", background.width, background.height);
-    }
+    towerTexture = LoadTexture("resources/tower.png");
+    
+    towerHealth = 100;
+    enemyCount = 1;
 
-    // Inicializar herói no canto inferior esquerdo
-    hero = InitHero(100, 500);
-
-    // Inicializar inimigos - vindo da direita
-    enemyCount = 3;
     for (int i = 0; i < enemyCount; i++) {
-        enemies[i] = InitEnemy(900 + i * 100, 300); // Começam fora da tela à direita
+        // Inicializa o inimigo na primeira posição do caminho
+        enemies[i] = InitEnemy((int)path[0].x, (int)path[0].y); 
     }
-
-    // Inicializar torres em posições estratégicas
-    towerCount = 2;
-    towers[0] = InitTower(400, 300); // Torre no meio
-    towers[1] = InitTower(600, 200); // Torre mais à frente
 }
 
-// Atualizar jogo
-// Atualizar jogo
+// Atualização
 void UpdateGame(void) {
-    // Futuro: adicionar lógica do jogo aqui
-    // Por enquanto não faz nada, apenas mantém o loop funcionando
-    
-    // Você pode remover todo o código abaixo ou deixar comentado para usar depois:
-    
-    /*
-    // Atualizar herói (movimento com teclado)
-    UpdateHero(&hero);
-
-    // Atualizar inimigos (andam para a esquerda)
+    // Dentro de UpdateGame()
     for (int i = 0; i < enemyCount; i++) {
         UpdateEnemy(&enemies[i]);
         
-        // Se inimigo saiu da tela pela esquerda, reposiciona à direita
-        if (enemies[i].x < -50) {
-            enemies[i].x = 850;
-            enemies[i].y = 100 + (i * 100); // Posição Y variada
+        if (EnemyReachedTower(enemies[i]) && enemies[i].active) { // Verifica se chegou e ainda está ativo
+            towerHealth -= 1; 
+            enemies[i].active = 0; // Desativa ele APÓS causar o dano
         }
     }
-    */
+
+    if (towerHealth <= 0) {
+        towerHealth = 0;
+    }
 }
 
-// Desenhar jogo
-// Desenhar jogo
+// Desenho
 void DrawGame(void) {
-    // Obter o tamanho atual da janela
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
-    
     BeginDrawing();
-    
-    // Limpar tela com fallback
     ClearBackground(BLACK);
 
-    // Desenhar background redimensionado para CABER na tela sem zoom excessivo
-    if (background.id != 0) {
-        // Calcular escala para CABER na tela (usar a MENOR escala)
-        float scaleX = (float)screenWidth / background.width;
-        float scaleY = (float)screenHeight / background.height;
-        float scale = (scaleX < scaleY) ? scaleX : scaleY; // Usar a MENOR escala
-        
-        int scaledWidth = background.width * scale;
-        int scaledHeight = background.height * scale;
-        
-        // Centralizar a imagem
-        int posX = (screenWidth - scaledWidth) / 2;
-        int posY = (screenHeight - scaledHeight) / 2;
-        
-        DrawTextureEx(background, (Vector2){posX, posY}, 0.0f, scale, WHITE);
-    } else {
-        // Fallback visual se o background não carregar
-        ClearBackground(DARKGRAY);
-        DrawText("BACKGROUND NAO CARREGADO - Use ESC para menu", 100, 300, 20, RED);
-    }
+    // 🔹 Fundo
+    DrawTexturePro(
+        background,
+        (Rectangle){ 0, 0, background.width, background.height }, 
+        (Rectangle){ 0, 0, GetScreenWidth(), GetScreenHeight() }, 
+        (Vector2){ 0, 0 }, 
+        0.0f, 
+        WHITE 
+    );
 
-    // UI básica - ajustar posição relativa ao tamanho da tela
-    DrawText("TOWER DEFENSE - Press ESC to return to menu", 10, 10, 20, YELLOW);
+    // 🔹 Torre
+    DrawTexture(towerTexture, 650, 100, WHITE);
+    DrawText(TextFormat("Tower HP: %d", towerHealth), 20, 20, 20, BLACK);
+
+    // 🔹 Inimigos
+    for (int i = 0; i < enemyCount; i++) {
+        DrawEnemy(enemies[i]);
+    }
 
     EndDrawing();
 }
 
-// Fechar jogo
+// Finalização
 void CloseGame(void) {
-    printf("DEBUG: Fechando jogo...\n");
-    
-    // Liberar background apenas se foi carregado
-    if (background.id != 0) {
-        UnloadTexture(background);
-    }
+    UnloadTexture(background);
+    UnloadTexture(towerTexture);
 }

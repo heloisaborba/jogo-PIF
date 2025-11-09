@@ -2,14 +2,17 @@ CC = gcc
 CFLAGS = -Wall -std=c99 -Iinclude
 LDFLAGS = -lraylib -lm -lpthread -ldl -lGL -lX11
 
-SRC = $(wildcard src/*.c)
+SRC = src/main.c src/game.c src/enemy.c src/hero.c src/menu.c src/tower.c src/utils.c
 OBJ = $(SRC:.c=.o)
-TARGET = tower_defense
+EXEC = tower_defense
 
-all: $(TARGET)
+all: $(EXEC)
 
-$(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
+$(EXEC): $(OBJ)
+	$(CC) $(OBJ) -o $(EXEC) $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f src/*.o $(TARGET)
+	rm -f $(OBJ) $(EXEC)

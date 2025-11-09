@@ -1,12 +1,16 @@
+// game.h
+
 #ifndef GAME_H
 #define GAME_H
 
 #include "raylib.h"
-#include "hero.h"
-#include "enemy.h"
-#include "tower.h"
 
-// Declarações das funções do jogo
+// Definição do Waypoint aqui para ser globalmente acessível
+#define MAX_WAYPOINTS 10
+
+// O array 'path' será definido em game.c
+extern Vector2 path[MAX_WAYPOINTS]; 
+
 void InitGame(void);
 void UpdateGame(void);
 void DrawGame(void);
