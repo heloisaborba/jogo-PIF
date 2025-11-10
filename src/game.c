@@ -28,6 +28,8 @@ static Texture2D background;
 static Texture2D towerTexture;
 static int towerHealth = 100;
 static recursos gameRecursos;
+static float spawnTimer = 0.0f;
+static const float SPAWN_INTERVAL = 2.0f; // Spawn a new enemy every 2 seconds
 
 // 💰 Variáveis do sistema de menu
 static bool menuAberto = false;
@@ -224,11 +226,21 @@ void UpdateGame(void) {
     }
     
     // Atualização normal do jogo (quando menu fechado)
+    // Spawn new enemies if tower is alive and not at max enemies
+    if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
+        spawnTimer += GetFrameTime();
+        if (spawnTimer >= SPAWN_INTERVAL) {
+            enemies[enemyCount] = InitEnemy((int)path[0].x, (int)path[0].y);
+            enemyCount++;
+            spawnTimer = 0.0f;
+        }
+    }
+
     for (int i = 0; i < enemyCount; i++) {
         UpdateEnemy(&enemies[i]);
-        
+
         if (EnemyReachedTower(enemies[i]) && enemies[i].active) {
-            towerHealth -= 1; 
+            towerHealth -= 1;
             enemies[i].active = 0;
         }
     }
