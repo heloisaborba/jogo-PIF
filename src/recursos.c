@@ -18,3 +18,8 @@ int comprar_heroi(recursos *r) {
     }
     return 0; // moedas insuficientes
 }
+
+// Recompensa por inimigo derrotado: adiciona 5 moedas
+void inimigo_morto(recursos *r) {
+    r->moedas += 5;
+}

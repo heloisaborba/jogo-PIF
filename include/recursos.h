@@ -16,4 +16,7 @@ int get_moedas(recursos *r);
 // Retorna 1 se a compra for bem-sucedida, 0 caso contrário
 int comprar_heroi(recursos *r);
 
+// Aumenta as moedas em 5 quando um inimigo é derrotado
+void inimigo_morto(recursos *r);
+
 #endif
