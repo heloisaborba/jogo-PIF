@@ -6,7 +6,7 @@
 #include "raylib.h"
 
 // Definição do Waypoint aqui para ser globalmente acessível
-#define MAX_WAYPOINTS 10
+#define MAX_WAYPOINTS 9
 
 // O array 'path' será definido em game.c
 extern Vector2 path[MAX_WAYPOINTS]; 

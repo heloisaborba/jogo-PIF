@@ -11,70 +11,84 @@ MenuOption ShowMenu() {
     };
 
     int selected = 0;
-    int fontSize = 30;
-    int frameCount = 0;
+    // int fontSize = 30; // Removido, agora será calculado
 
     printf("DEBUG: Menu iniciado - aguardando input\n");
 
-    while (!WindowShouldClose()) {
-        frameCount++;
-        
-        // DEBUG: Monitorar estado a cada 60 frames
-        if (frameCount % 60 == 0) {
-            printf("DEBUG: Menu frame %d - selected: %d\n", frameCount, selected);
-        }
+    Texture2D background = LoadTexture("resources/fundoMenu.png");
 
-        // Controle por teclado - COM VERIFICAÇÃO DE SEGURANÇA
+    while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_UP)) {
             selected--;
             if (selected < 0) selected = MENU_TOTAL - 1;
-            printf("DEBUG: KEY_UP - nova seleção: %d\n", selected);
         }
         if (IsKeyPressed(KEY_DOWN)) {
             selected++;
             if (selected >= MENU_TOTAL) selected = 0;
-            printf("DEBUG: KEY_DOWN - nova seleção: %d\n", selected);
         }
 
-        // Desenho do menu - COM TRY/CATCH IMPLÍCITO
         BeginDrawing();
-        ClearBackground(BLACK);
 
-        DrawText("=== TOWER DEFENSE ===", 220, 100, 40, RAYWHITE);
+        ClearBackground(BLACK); 
+
+        // === CÁLCULO DE ESCALA OTIMIZADO (Contain) ===
+        float screenWidth = GetScreenWidth();
+        float screenHeight = GetScreenHeight();
+        float imageRatio = (float)background.width / (float)background.height;
+        float screenRatio = screenWidth / screenHeight;
+
+        float scale = (screenRatio < imageRatio) ? 
+                      (screenWidth / (float)background.width) : 
+                      (screenHeight / (float)background.height);
+
+        float scaledWidth = background.width * scale;
+        float scaledHeight = background.height * scale;
+
+        float centeredX = (screenWidth - scaledWidth) / 2.0f;
+        float centeredY = (screenHeight - scaledHeight) / 2.0f;
+
+        Rectangle sourceRec = {0, 0, (float)background.width, (float)background.height};
+        Rectangle destRec = {centeredX, centeredY, scaledWidth, scaledHeight};
+        
+        DrawTexturePro(background, sourceRec, destRec, (Vector2){0, 0}, 0.0f, WHITE);
+
+        // === DESENHO DO TEXTO RESPONSIVO ===
+        
+        // --- Título do Jogo ---
+        const char* titleText = "=== TOWER DEFENSE ===";
+        // Tamanho da fonte do título: Ajuste a base (por exemplo, 40) e o fator de escala
+        int titleFontSize = (int)(40 * (screenHeight / 720.0f)); // Baseado em uma altura de 720p
+        Vector2 titleSize = MeasureTextEx(GetFontDefault(), titleText, titleFontSize, 0);
+        DrawText(titleText, (screenWidth - titleSize.x) / 2.4, screenHeight * 0.15f, titleFontSize, RAYWHITE); // Posição vertical percentual
+
+        // --- Opções do Menu ---
+        // Tamanho da fonte das opções
+        int menuFontSize = (int)(30 * (screenHeight / 720.0f)); // Baseado em uma altura de 720p
+        float startY = screenHeight * 0.40f; // Posição vertical inicial percentual para as opções
+        float lineSpacing = screenHeight * 0.07f; // Espaçamento entre as linhas percentual
 
         for (int i = 0; i < MENU_TOTAL; i++) {
-            Color color = (i == selected) ? YELLOW : RAYWHITE;
+            Color color = (i == selected) ? GREEN : RAYWHITE;
             const char *prefix = (i == selected) ? "> " : "  ";
-            DrawText(TextFormat("%s%s", prefix, options[i]), 300, 200 + i * 50, fontSize, color);
+            const char* optionText = TextFormat("%s%s", prefix, options[i]);
+            Vector2 optionSize = MeasureTextEx(GetFontDefault(), optionText, menuFontSize, 0);
+            DrawText(optionText, (screenWidth - optionSize.x) / 2.2, startY + i * lineSpacing, menuFontSize, color);
         }
 
-        // Info de debug na tela
-        DrawText("Use ARROWS + ENTER", 250, 500, 20, GRAY);
-        DrawText(TextFormat("Frame: %d | Selected: %d", frameCount, selected), 10, 10, 15, GREEN);
+        // --- Instruções ---
+        const char* instructionsText = "Use ARROWS + ENTER";
+        int instructionsFontSize = (int)(20 * (screenHeight / 720.0f)); // Baseado em uma altura de 720p
+        Vector2 instructionsSize = MeasureTextEx(GetFontDefault(), instructionsText, instructionsFontSize, 0);
+        DrawText(instructionsText, (screenWidth - instructionsSize.x) / 2, screenHeight * 0.8f, instructionsFontSize, GRAY); // Posição vertical percentual
 
         EndDrawing();
 
-        // Verificação de ENTER - COM LOG DETALHADO
         if (IsKeyPressed(KEY_ENTER)) {
-            printf("DEBUG: ==========================================\n");
-            printf("DEBUG: ENTER DETECTADO! Opção selecionada: %d (%s)\n", 
-                   selected, options[selected]);
-            printf("DEBUG: Retornando para main()...\n");
-            printf("DEBUG: ==========================================\n");
+            UnloadTexture(background);
             return (MenuOption)selected;
-        }
-
-        // Pequena pausa para estabilidade
-        WaitTime(0.016);
-        
-        // Safety check: se ficar preso por muitos frames
-        if (frameCount > 600) { // ~10 segundos
-            printf("DEBUG: SAFETY TIMEOUT - Menu preso por muito tempo\n");
-            printf("DEBUG: Retornando MENU_EXIT por segurança\n");
-            return MENU_EXIT;
         }
     }
 
-    printf("DEBUG: WindowShouldClose() = true, saindo do menu\n");
+    UnloadTexture(background);
     return MENU_EXIT;
 }

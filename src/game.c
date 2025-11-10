@@ -7,33 +7,23 @@
 
 #define MAX_ENEMIES 5
 
+#define MAX_WAYPOINTS 9
+
 Vector2 path[MAX_WAYPOINTS] = {
-// INÍCIO - NÃO ALTERAR, parte perfeita
-    {50, 440},  
-
-    // Ponto 1: Entra na seção reta (X=150)
-    {150, 440}, 
-
-    // Ponto 2: Meio da seção reta (Y é quase o mesmo)
-    {400, 450}, // Y ajustado para 450 (era 480/540)
-
-    // Ponto 3: Topo da Coluna Vertical (Início da subida principal)
-    {400, 200}, 
-
-    // Ponto 4: Vira para a seção horizontal superior
-    {650, 200}, 
+    {10, 440},      // 0: Início (não alterado)
     
-    // Ponto 5: Curva para a Ponte
-    {700, 180},
+    // --- Nova Curva 1 (Horizontal Inferior) ---
+    {120, 440},     // 1: Início da curva para baixo
+    {150, 520},     // 2: NOVO PONTO (Topo da primeira curva vermelha)
+    {400, 520},     // 3: AJUSTADO FINAL: Seção horizontal inferior (X movido de 410 para 400)
+    {400, 450},     // 4: AJUSTADO: Final da curva inferior (X movido de 410 para 400)
     
-    // Ponto 6: Meio da Ponte
-    {700, 130}, 
-
-    // Ponto 7: Curva final
-    {750, 100}, 
-
-    // Ponto 8: Chegada na Torre (posição final)
-    {780, 100}  // Fim do Array (Índice 8)
+    // --- Caminho Original Ajustado ---
+    {400, 200},     // 5: Subida (X ajustado para 400 para manter o alinhamento vertical)
+    {650, 200},     // 6: Curva superior
+    {700, 180},     // 7: Preparação para ponte
+    {700, 130},     // 8: Ponte
+    {750, 100},
 };
 
 static Enemy enemies[MAX_ENEMIES];
@@ -88,6 +78,15 @@ void DrawGame(void) {
         0.0f, 
         WHITE 
     );
+
+    // 🎯 DEBUG: Desenha o caminho dos inimigos (adicione estas linhas)
+    for (int i = 0; i < MAX_WAYPOINTS - 1; i++) {
+        DrawLineEx(path[i], path[i + 1], 3.0f, (Color){255, 255, 0, 128});
+    }
+    for (int i = 0; i < MAX_WAYPOINTS; i++) {
+        DrawCircle(path[i].x, path[i].y, 5.0f, BLUE);
+        DrawText(TextFormat("%d", i), path[i].x + 10, path[i].y - 10, 10, WHITE);
+    }
 
     // 🔹 Torre
     DrawTexture(towerTexture, 650, 100, WHITE);

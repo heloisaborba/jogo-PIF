@@ -1,65 +1,62 @@
-// enemy.c
-
+// enemy.c - Versão com movimento suave
 #include "raylib.h"
 #include "enemy.h"
-#include "game.h" // Inclui game.h para ter acesso a MAX_WAYPOINTS e path
-#include <math.h> // Necessário para sqrtf e roundf
+#include "game.h"
+#include <math.h>
 
-#define ENEMY_SPEED 1.0f // Velocidade de movimento (pode ser float)
+#define ENEMY_SPEED 100.0f  // Em pixels por segundo
+#define WAYPOINT_THRESHOLD 3.0f
 
-// Declaração externa correta: path usa o tamanho MAX_WAYPOINTS de game.h
-extern Vector2 path[MAX_WAYPOINTS]; 
+extern Vector2 path[MAX_WAYPOINTS];
 
 Enemy InitEnemy(int x, int y) {
-    // Inicializa o inimigo com o ponto inicial (x, y) e mirando o Próximo Waypoint (índice 1)
-    Enemy e = { x, y, 50, 1, 1 }; 
+    Enemy e = { 
+        .x = x, 
+        .y = y, 
+        .health = 50, 
+        .active = 1, 
+        .currentWaypoint = 0
+    };
     return e;
 }
 
 void UpdateEnemy(Enemy *e) {
     if (!e->active) return;
     
-    // Se o inimigo atingiu ou passou o último Waypoint, ele chegou ao destino.
-    if (e->currentWaypoint >= MAX_WAYPOINTS) {
-        return; 
-    }
+    if (e->currentWaypoint >= MAX_WAYPOINTS - 1) return;
 
-    Vector2 target = path[e->currentWaypoint];
+    int targetIndex = e->currentWaypoint + 1;
+    Vector2 target = path[targetIndex];
     
-    // 1. Calcular a diferença (vetor) para o Waypoint
     float dx = target.x - e->x;
     float dy = target.y - e->y;
-    float distance = sqrtf(dx*dx + dy*dy); // Distância Euclidiana
+    float distance = sqrtf(dx*dx + dy*dy);
 
-    // 2. Mover em direção ao Waypoint
-    if (distance > ENEMY_SPEED) { // Mover se estiver longe o suficiente
-        
-        // Normalizar o vetor de direção e aplicar a velocidade
-        float factor = ENEMY_SPEED / distance;
-        
-        // Aplicar o movimento. Usamos roundf para suavizar a conversão para int.
-        e->x += (int)roundf(dx * factor);
-        e->y += (int)roundf(dy * factor);
-    } 
-    
-    // 3. Se o inimigo atingiu o Waypoint (ou está muito próximo), avançar
-    else { 
-        // Snap para o Waypoint antes de mudar
-        e->x = (int)target.x;
-        e->y = (int)target.y;
-        
-        e->currentWaypoint++; // Vai para o próximo ponto
+    if (distance > WAYPOINT_THRESHOLD) {
+        // Movimento baseado em tempo (mais suave)
+        float factor = (ENEMY_SPEED * GetFrameTime()) / distance;
+        e->x += dx * factor;
+        e->y += dy * factor;
+    } else {
+        // Avança para o próximo waypoint
+        e->currentWaypoint++;
+        e->x = target.x;
+        e->y = target.y;
     }
 }
 
 void DrawEnemy(Enemy e) {
     if (!e.active) return;
-    // Desenha o inimigo no centro de suas coordenadas
-    DrawRectangle(e.x - 15, e.y - 15, 30, 30, RED); 
+    
+    // Inimigo mais visual
+    DrawCircle(e.x, e.y, 15, RED);
+    DrawCircle(e.x, e.y, 12, MAROON);
+    
+    // Barra de vida
+    DrawRectangle(e.x - 15, e.y - 25, 30, 5, BLACK);
+    DrawRectangle(e.x - 15, e.y - 25, (30 * e.health) / 50, 5, GREEN);
 }
 
-// Função para verificar se chegou ao fim do caminho (no último Waypoint)
 int EnemyReachedTower(Enemy e) {
-    // Se o índice do Waypoint atual for maior ou igual ao máximo, ele chegou
-    return e.currentWaypoint >= MAX_WAYPOINTS;
+    return (e.currentWaypoint >= MAX_WAYPOINTS - 1);
 }
