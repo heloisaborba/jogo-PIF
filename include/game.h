@@ -18,6 +18,16 @@ typedef struct {
     Texture2D texture;
 } Heroi;
 
+// Estrutura para heróis colocados no mapa
+typedef struct {
+    int x, y;
+    int tipo; // 0: Guerreiro, 1: Bardo, 2: Paladino, 3: Mago
+    int dano;
+    int alcance;
+    float lastAttackTime;
+    Texture2D texture;
+} PlacedHero;
+
 // Declaração do caminho com o novo tamanho
 extern Vector2 path[MAX_WAYPOINTS];
 

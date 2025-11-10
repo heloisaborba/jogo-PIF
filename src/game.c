@@ -6,6 +6,7 @@
 #include "recursos.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #define MAX_ENEMIES 5
 
@@ -34,6 +35,12 @@ static const float SPAWN_INTERVAL = 2.0f; // Spawn a new enemy every 2 seconds
 // 💰 Variáveis do sistema de menu
 static bool menuAberto = false;
 static Heroi herois[MAX_HEROIS];
+
+// Heróis colocados no mapa
+static PlacedHero placedHeroes[MAX_HEROIS];
+static int placedHeroCount = 0;
+static bool placementMode = false;
+static int selectedHeroType = -1; // Tipo do herói a ser colocado
 
 // 💰 Inicializa os heróis disponíveis
 void InicializarHerois(void) {
@@ -71,6 +78,15 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
     if (tipoHeroi >= 0 && tipoHeroi < MAX_HEROIS) {
         if (r->moedas >= herois[tipoHeroi].custo) {
             r->moedas -= herois[tipoHeroi].custo;
+            // Entrar no modo de colocação
+            if (placedHeroCount < MAX_HEROIS) {
+                placementMode = true;
+                selectedHeroType = tipoHeroi;
+                menuAberto = false; // Fecha o menu
+                TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
+            } else {
+                TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s.", herois[tipoHeroi].nome);
+            }
             return 1; // Compra realizada
         }
     }
@@ -199,7 +215,7 @@ void UpdateGame(void) {
     // Se o menu estiver aberto, processa apenas inputs do menu
     if (menuAberto) {
         VerificarCliqueMenu();
-        
+
         // 💰 Compras rápidas com teclas numéricas
         if (IsKeyPressed(KEY_ONE)) {
             if (ComprarHeroiEspecifico(&gameRecursos, 0)) {
@@ -221,11 +237,63 @@ void UpdateGame(void) {
                 TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[3].nome, gameRecursos.moedas);
             }
         }
-        
+
         return; // Não atualiza o jogo enquanto o menu está aberto
     }
+
+    // Se estiver no modo de colocação, processa clique no mapa
+    if (placementMode) {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mousePos = GetMousePosition();
+            // Coloca o herói na posição clicada
+            placedHeroes[placedHeroCount].x = (int)mousePos.x;
+            placedHeroes[placedHeroCount].y = (int)mousePos.y;
+            placedHeroes[placedHeroCount].tipo = selectedHeroType;
+            placedHeroes[placedHeroCount].dano = herois[selectedHeroType].dano;
+            placedHeroes[placedHeroCount].alcance = herois[selectedHeroType].alcance;
+            placedHeroes[placedHeroCount].lastAttackTime = 0.0f;
+            placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
+            placedHeroCount++;
+            TraceLog(LOG_INFO, "%s colocado no mapa!", herois[selectedHeroType].nome);
+            // Sai do modo de colocação
+            placementMode = false;
+            selectedHeroType = -1;
+        }
+        return; // Não atualiza o jogo enquanto no modo de colocação
+    }
     
-    // Atualização normal do jogo (quando menu fechado)
+
+
+    // Atualizar heróis colocados
+    for (int i = 0; i < placedHeroCount; i++) {
+        // Encontrar inimigo mais próximo no alcance
+        int targetEnemy = -1;
+        float minDist = placedHeroes[i].alcance;
+        for (int j = 0; j < enemyCount; j++) {
+            if (enemies[j].active) {
+                float dx = placedHeroes[i].x - enemies[j].x;
+                float dy = placedHeroes[i].y - enemies[j].y;
+                float dist = sqrt(dx*dx + dy*dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    targetEnemy = j;
+                }
+            }
+        }
+
+        // Atacar inimigo se encontrado
+        if (targetEnemy != -1) {
+            placedHeroes[i].lastAttackTime += GetFrameTime();
+            if (placedHeroes[i].lastAttackTime >= 1.0f) { // Ataque a cada 1 segundo
+                enemies[targetEnemy].health -= placedHeroes[i].dano;
+                if (enemies[targetEnemy].health <= 0) {
+                    enemies[targetEnemy].active = 0;
+                }
+                placedHeroes[i].lastAttackTime = 0.0f;
+            }
+        }
+    }
+
     // Spawn new enemies if tower is alive and not at max enemies
     if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
         spawnTimer += GetFrameTime();
@@ -263,6 +331,11 @@ void DrawGameUI(void) {
     
     // Instruções para abrir menu
     DrawText("M - Abrir loja de herois", 20, 80, 15, LIGHTGRAY);
+
+    // Indicação de modo de colocação
+    if (placementMode) {
+        DrawText("Clique no mapa para colocar o herói", GetScreenWidth()/2 - MeasureText("Clique no mapa para colocar o herói", 20)/2, 20, 20, YELLOW);
+    }
 }
 
 // Desenho
@@ -299,7 +372,24 @@ void DrawGame(void) {
     for (int i = 0; i < enemyCount; i++) {
         DrawEnemy(enemies[i]);
     }
-    
+
+    // Desenhar heróis colocados
+    for (int i = 0; i < placedHeroCount; i++) {
+        Color heroColor;
+        switch (placedHeroes[i].tipo) {
+            case 0: heroColor = BLUE; break;   // Guerreiro
+            case 1: heroColor = GREEN; break;  // Bardo
+            case 2: heroColor = YELLOW; break; // Paladino
+            case 3: heroColor = PURPLE; break; // Mago
+            default: heroColor = WHITE; break;
+        }
+        DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
+        // Desenhar alcance (círculo semi-transparente)
+        DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
+    }
+
+
+
     // 💰 Desenha o menu se estiver aberto
     if (menuAberto) {
         DrawMenuHerois();
