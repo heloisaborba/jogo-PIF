@@ -1,4 +1,4 @@
-#include "recursos.h"
+#include "../include/recursos.h"
 
 // Define o valor inicial de moedas
 void inicializar_recursos(recursos *r) {
@@ -8,4 +8,13 @@ void inicializar_recursos(recursos *r) {
 // Retorna o total de moedas do jogador
 int get_moedas(recursos *r) {
     return r->moedas;
+}
+
+// Compra de herói: custa 100 moedas se houver saldo suficiente
+int comprar_heroi(recursos *r) {
+    if (r->moedas >= 100) {
+        r->moedas -= 100;
+        return 1; // compra realizada
+    }
+    return 0; // moedas insuficientes
 }
