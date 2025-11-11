@@ -18,13 +18,35 @@ O objetivo é defender o castelo e gerenciar os recursos disponíveis, garantind
 
 ## 🏰 Elementos Principais
 
-- Torres de Defesa: Cada torre possui um tipo de ataque e alcance diferentes (arqueiros, magos, canhões etc.).
+- Torres de Defesa: É o pronto principal do jogo, pois o objetivo dos vilões é atacar a torre ate deixa-lá sem vida.
 
-- Heróis: Personagens especiais que o jogador pode posicionar e mover para reforçar defesas em áreas críticas.
+- Heróis: Personagens especiais que o jogador pode posicionar estrategicamente para reforçar defesas em áreas críticas.
 
 - Inimigos: Vão vir hordas de inimigos, cada um com velocidade, resistência e comportamento distintos.
 
 - Recursos: Moedas obtidas ao derrotar inimigos, usadas para construir ou aprimorar torres e heróis.
+
+---
+
+## 🛡️ Personagens
+
+### Herois:
+- Guerreiro:
+  
+- Mago:
+
+- Paladino:
+
+- Bardo:
+
+### Vilões:
+- Goblim:
+
+- Spectro:
+
+- Necromante:
+
+- Dragão:
 
 ---
 
