@@ -22,10 +22,11 @@ O objetivo é defender o castelo e gerenciar os recursos disponíveis, garantind
 
 - Heróis: Personagens especiais que o jogador pode posicionar e mover para reforçar defesas em áreas críticas.
 
-- Inimigos: Hordas de goblins, spectros, necromantes e dragoes, cada um com velocidade, resistência e comportamento distintos.
+- Inimigos: Vão vir hordas de inimigos, cada um com velocidade, resistência e comportamento distintos.
 
-- Recursos: Moedas e energia obtidas ao derrotar inimigos, usadas para construir ou aprimorar torres e heróis.
+- Recursos: Moedas obtidas ao derrotar inimigos, usadas para construir ou aprimorar torres e heróis.
 
 ---
+
 
 
