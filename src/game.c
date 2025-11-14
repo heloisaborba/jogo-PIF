@@ -191,7 +191,7 @@ void VerificarCliqueMenu(void) {
 // Inicialização
 void InitGame(void) {
     // Carrega as texturas
-    background = LoadTexture("resources/background.jpg");
+    background = LoadTexture("resources/background_novo.jpg");
     towerTexture = LoadTexture("resources/tower.png");
 
     inicializar_recursos(&gameRecursos);
