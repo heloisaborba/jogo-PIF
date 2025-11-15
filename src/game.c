@@ -11,6 +11,7 @@
 #define MAX_ENEMIES 20
 
 #define NUM_WAYPOINTS 84 // TOTAL DE PONTOS
+#define ENEMY_DAMAGE_TO_CASTLE 20 // Dano de 20 por inimigo na torre
 
 Vector2 path[NUM_WAYPOINTS] = {
     // ... Pontos 0 a 82 (sem alteração) ...
@@ -40,20 +41,25 @@ Vector2 path[NUM_WAYPOINTS] = {
     { 571, 215 }, // Ponto 81 
     { 608, 203 }, // Ponto 82 
     
-    // CORREÇÃO APLICADA: Ponto 83 sobe 15 pixels.
+    // Ponto 83 sobe 15 pixels.
     { 645, 176 }, // Ponto 83 (Y: 191 - 15 = 176)
-
     
 };
+
 
 static Enemy enemies[MAX_ENEMIES];
 static int enemyCount = 0;
 static Texture2D background;
 static Texture2D towerTexture;
-static int towerHealth = 100;
 static recursos gameRecursos;
 static float spawnTimer = 0.0f;
 static const float SPAWN_INTERVAL = 2.0f; // Spawn a new enemy every 2 seconds
+
+
+// Variáveis GLOBAIS de Estado (Removidas as duplicações)
+GameState current_game_state = PLAYING; 
+int enemies_defeated_count = 0; 
+int towerHealth = CASTLE_MAX_HEALTH; // Usa a constante definida em game.h
 
 // 💰 Variáveis do sistema de menu
 static bool menuAberto = false;
@@ -67,7 +73,7 @@ static int selectedHeroType = -1; // Tipo do herói a ser colocado
 
 // 💰 Inicializa os heróis disponíveis
 void InicializarHerois(void) {
-    // Herói 1: Guerreiro
+    // Heroi 1: Guerreiro
     strcpy(herois[0].nome, "Guerreiro");
     herois[0].custo = 50;
     herois[0].dano = 10;
@@ -116,8 +122,6 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
     return 0; // Moedas insuficientes ou tipo inválido
 }
 
-// 💰 Função para desenhar o menu de heróis
-// 💰 Função para desenhar o menu de heróis
 // 💰 Função para desenhar o menu de heróis
 void DrawMenuHerois(void) {
     int screenWidth = GetScreenWidth();
@@ -220,12 +224,12 @@ void InitGame(void) {
     inicializar_recursos(&gameRecursos);
     InicializarHerois(); // 💰 Inicializa o sistema de heróis
     
-    towerHealth = 100;
-    enemyCount = 1;
+    towerHealth = CASTLE_MAX_HEALTH; // NOVO: Usa a constante de vida máxima
+    current_game_state = PLAYING; // NOVO: Inicia no estado PLAYING
+    enemies_defeated_count = 0; // NOVO: Zera o contador de vitória
+    enemyCount = 0; // Zera a contagem para iniciar o spawn
 
-    for (int i = 0; i < enemyCount; i++) {
-        enemies[i] = InitEnemy((int)path[0].x, (int)path[0].y); 
-    }
+    // O loop para inicializar enemies[0] foi removido, o spawn fará isso.
 }
 
 // Atualização
@@ -234,33 +238,24 @@ void UpdateGame(void) {
     if (IsKeyPressed(KEY_M)) {
         menuAberto = !menuAberto;
     }
+
+    // NOVO: Se o jogo terminou ou está na tela de vitória/derrota, bloqueia a maioria das ações
+    if (current_game_state != PLAYING) {
+        // Lógica para clique nos botões (Reiniciar / Próxima Fase) pode ir aqui
+        
+        // Se menu estiver aberto, permite fechar (e processa compra se for rápida)
+        if (menuAberto) {
+            VerificarCliqueMenu();
+            // ... (Lógica de Compras rápidas) ...
+        }
+        
+        return; // Sai se o jogo não está em andamento
+    }
     
     // Se o menu estiver aberto, processa apenas inputs do menu
     if (menuAberto) {
         VerificarCliqueMenu();
-
-        // 💰 Compras rápidas com teclas numéricas
-        if (IsKeyPressed(KEY_ONE)) {
-            if (ComprarHeroiEspecifico(&gameRecursos, 0)) {
-                TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[0].nome, gameRecursos.moedas);
-            }
-        }
-        if (IsKeyPressed(KEY_TWO)) {
-            if (ComprarHeroiEspecifico(&gameRecursos, 1)) {
-                TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[1].nome, gameRecursos.moedas);
-            }
-        }
-        if (IsKeyPressed(KEY_THREE)) {
-            if (ComprarHeroiEspecifico(&gameRecursos, 2)) {
-                TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[2].nome, gameRecursos.moedas);
-            }
-        }
-        if (IsKeyPressed(KEY_FOUR)) {
-            if (ComprarHeroiEspecifico(&gameRecursos, 3)) {
-                TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[3].nome, gameRecursos.moedas);
-            }
-        }
-
+        // ... (Lógica de Compras rápidas) ...
         return; // Não atualiza o jogo enquanto o menu está aberto
     }
 
@@ -285,8 +280,7 @@ void UpdateGame(void) {
         return; // Não atualiza o jogo enquanto no modo de colocação
     }
     
-
-
+    
     // Atualizar heróis colocados
     for (int i = 0; i < placedHeroCount; i++) {
         // Encontrar inimigo mais próximo no alcance
@@ -309,8 +303,11 @@ void UpdateGame(void) {
             placedHeroes[i].lastAttackTime += GetFrameTime();
             if (placedHeroes[i].lastAttackTime >= 1.0f) { // Ataque a cada 1 segundo
                 enemies[targetEnemy].health -= placedHeroes[i].dano;
+                
+                // NOVO: Lógica de morte do inimigo pelo herói
                 if (enemies[targetEnemy].health <= 0) {
                     enemies[targetEnemy].active = 0;
+                    enemies_defeated_count++; // Incrementa o contador de vitória
                 }
                 placedHeroes[i].lastAttackTime = 0.0f;
             }
@@ -327,17 +324,26 @@ void UpdateGame(void) {
         }
     }
 
+    // Atualiza movimento e checa chegada à torre
     for (int i = 0; i < enemyCount; i++) {
         UpdateEnemy(&enemies[i]);
 
         if (EnemyReachedTower(enemies[i]) && enemies[i].active) {
-            towerHealth -= 1;
-            enemies[i].active = 0;
+            // NOVO: Causa 20 de dano
+            towerHealth -= ENEMY_DAMAGE_TO_CASTLE; 
+            enemies[i].active = 0; // Desativa o inimigo após causar dano
+
+            if (towerHealth <= 0) {
+                towerHealth = 0;
+                current_game_state = GAME_OVER; // MUDANÇA DE ESTADO: PERDEU
+            }
         }
     }
 
-    if (towerHealth <= 0) {
-        towerHealth = 0;
+    // NOVO: Lógica de Vitória
+    // A fase termina quando o número máximo de inimigos (20) foi gerado E derrotado
+    if (enemyCount >= MAX_ENEMIES && enemies_defeated_count >= MAX_ENEMIES) {
+        current_game_state = WAVE_WON; // MUDANÇA DE ESTADO: VENCEU
     }
 }
 
@@ -391,31 +397,57 @@ void DrawGame(void) {
     // 💰 UI Normal
     DrawGameUI();
 
-    // 🔹 Inimigos
-    for (int i = 0; i < enemyCount; i++) {
-        DrawEnemy(enemies[i]);
-    }
-
-    // Desenhar heróis colocados
-    for (int i = 0; i < placedHeroCount; i++) {
-        Color heroColor;
-        switch (placedHeroes[i].tipo) {
-            case 0: heroColor = BLUE; break;   // Guerreiro
-            case 1: heroColor = GREEN; break;  // Bardo
-            case 2: heroColor = YELLOW; break; // Paladino
-            case 3: heroColor = PURPLE; break; // Mago
-            default: heroColor = WHITE; break;
+    // 🔹 Inimigos e Heróis (Só desenha se o jogo estiver rodando)
+    if (current_game_state == PLAYING) {
+        for (int i = 0; i < enemyCount; i++) {
+            DrawEnemy(enemies[i]);
         }
-        DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
-        // Desenhar alcance (círculo semi-transparente)
-        DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
-    }
 
+        // Desenhar heróis colocados
+        for (int i = 0; i < placedHeroCount; i++) {
+            Color heroColor;
+            switch (placedHeroes[i].tipo) {
+                case 0: heroColor = BLUE; break; 
+                case 1: heroColor = GREEN; break;
+                case 2: heroColor = YELLOW; break;
+                case 3: heroColor = PURPLE; break;
+                default: heroColor = WHITE; break;
+            }
+            DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
+            // Desenhar alcance (círculo semi-transparente)
+            DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
+        }
+    }
 
 
     // 💰 Desenha o menu se estiver aberto
     if (menuAberto) {
         DrawMenuHerois();
+    }
+    
+    // =======================================================
+    // NOVO: TELA DE ESTADO FINAL (VITÓRIA OU DERROTA)
+    // =======================================================
+
+    if (current_game_state == GAME_OVER) {
+        // TELA DE DERROTA
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.8f)); 
+        const char *message = "VOCÊ PERDEU! A TORRE FOI DESTRUÍDA.";
+        int message_len = MeasureText(message, 40);
+        DrawText(message, (GetScreenWidth() / 2) - (message_len / 2), GetScreenHeight() / 2 - 50, 40, WHITE);
+        
+    } else if (current_game_state == WAVE_WON) {
+        // TELA DE VITÓRIA
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(DARKGREEN, 0.8f)); 
+        
+        const char *message = "VOCÊ GANHOU! IR PARA A FASE 2";
+        int message_len = MeasureText(message, 40);
+        DrawText(message, (GetScreenWidth() / 2) - (message_len / 2), GetScreenHeight() / 2 - 50, 40, GOLD);
+        
+        // Exemplo de botão
+        Rectangle button_rect = { (GetScreenWidth() / 2) - 100, GetScreenHeight() / 2 + 50, 200, 50 };
+        DrawRectangleRec(button_rect, YELLOW);
+        DrawText("CONTINUAR", button_rect.x + 50, button_rect.y + 15, 20, BLACK);
     }
 
     EndDrawing();

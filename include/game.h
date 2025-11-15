@@ -5,9 +5,19 @@
 #include "raylib.h"
 #include "recursos.h"
 
+#define CASTLE_MAX_HEALTH 100 // A vida inicial era 100
+#define ENEMY_DAMAGE_TO_CASTLE 20
+
 #define MAX_WAYPOINTS 84  // Mude de 9 para 10
 #define MAX_ENEMIES 20
 #define MAX_HEROIS 4
+
+// NOVO ENUM PARA ESTADOS DO JOGO
+typedef enum {
+    PLAYING,
+    WAVE_WON,
+    GAME_OVER 
+} GameState;
 
 // Estrutura para heróis
 typedef struct {
@@ -41,5 +51,10 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi);
 void DrawMenuHerois(void);
 void VerificarCliqueMenu(void);
 void DrawGameUI(void);
+
+extern Vector2 path[MAX_WAYPOINTS];
+extern GameState current_game_state; 
+extern int enemies_defeated_count; // Contador para a condição de vitória
+extern int towerHealth;
 
 #endif
