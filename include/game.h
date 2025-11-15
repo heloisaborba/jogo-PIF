@@ -6,7 +6,7 @@
 #include "recursos.h"
 
 #define MAX_WAYPOINTS 84  // Mude de 9 para 10
-#define MAX_ENEMIES 5
+#define MAX_ENEMIES 20
 #define MAX_HEROIS 4
 
 // Estrutura para heróis

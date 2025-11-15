@@ -8,7 +8,7 @@
 #include <string.h>
 #include <math.h>
 
-#define MAX_ENEMIES 5
+#define MAX_ENEMIES 20
 
 #define NUM_WAYPOINTS 84 // TOTAL DE PONTOS
 
