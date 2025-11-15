@@ -11,8 +11,8 @@
 #define MAX_ENEMIES 5
 
 Vector2 path[MAX_WAYPOINTS] = {
-    {10, 440},      // 0: Início
-    {120, 440},     // 1: Início da curva para baixo
+    {50, 565},      // 0: Início
+    {200, 560},     // 1: Início da curva para baixo
     {150, 520},     // 2: NOVO PONTO
     {400, 520},     // 3: Seção horizontal inferior
     {400, 450},     // 4: Final da curva inferior
