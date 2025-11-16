@@ -13,6 +13,11 @@
 #define NUM_WAYPOINTS 84 // TOTAL DE PONTOS
 #define ENEMY_DAMAGE_TO_CASTLE 20 // Dano de 20 por inimigo na torre
 
+// ⭐️ NOVAS CONSTANTES PARA O COMBATE INIMIGO VS HERÓI
+#define ENEMY_ATTACK_RANGE 75.0f // Alcance de ataque dos inimigos (pixels)
+#define ENEMY_DAMAGE_TO_HERO 5   // Dano que o inimigo causa a um herói
+#define ENEMY_ATTACK_INTERVAL 1.5f // Intervalo de ataque do inimigo (segundos)
+
 Vector2 path[NUM_WAYPOINTS] = {
     // ... Pontos 0 a 82 (sem alteração) ...
     { 50, 565 },  { 65, 560 },  { 80, 555 },  { 95, 550 },  { 110, 545 },
@@ -45,6 +50,12 @@ Vector2 path[NUM_WAYPOINTS] = {
     { 645, 176 }, // Ponto 83 (Y: 191 - 15 = 176)
     
 };
+
+
+// ⭐️ VARIÁVEIS DE ESTADO DO INIMIGO (SIMULANDO CAMPOS EM ENEMY STRUCT)
+// Usamos arrays paralelos, pois não temos acesso direto à struct Enemy
+static float enemyLastAttackTime[MAX_ENEMIES] = {0.0f}; // Tempo desde o último ataque
+static int enemyTargetHero[MAX_ENEMIES] = {-1}; // Índice do herói alvo (-1 se não estiver atacando)
 
 
 static Enemy enemies[MAX_ENEMIES];
@@ -181,8 +192,8 @@ void DrawMenuHerois(void) {
     
     // Instruções no rodapé
     DrawText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 
-             screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 17)/2, 
-             startY + cardHeight + 25, 17, LIGHTGRAY);
+              screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 17)/2, 
+              startY + cardHeight + 25, 17, LIGHTGRAY);
 }
 
 // 💰 Função para verificar clique nos botões do menu
@@ -229,7 +240,11 @@ void InitGame(void) {
     enemies_defeated_count = 0; // NOVO: Zera o contador de vitória
     enemyCount = 0; // Zera a contagem para iniciar o spawn
 
-    // O loop para inicializar enemies[0] foi removido, o spawn fará isso.
+    // Limpa os tempos de ataque dos inimigos
+    for(int i = 0; i < MAX_ENEMIES; i++) {
+        enemyLastAttackTime[i] = 0.0f;
+        enemyTargetHero[i] = -1;
+    }
 }
 
 // Atualização
@@ -282,8 +297,10 @@ void UpdateGame(void) {
     }
     
     
-    // Atualizar heróis colocados
+    // 1. Atualizar heróis colocados (Lógica de Ataque do Herói)
     for (int i = 0; i < placedHeroCount; i++) {
+        if (placedHeroes[i].health <= 0) continue; // Herói morto não ataca
+
         // Encontrar inimigo mais próximo no alcance
         int targetEnemy = -1;
         float minDist = placedHeroes[i].alcance;
@@ -315,22 +332,76 @@ void UpdateGame(void) {
         }
     }
 
-    // Spawn new enemies if tower is alive and not at max enemies
+    // 2. Spawn new enemies if tower is alive and not at max enemies
     if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
         spawnTimer += GetFrameTime();
         if (spawnTimer >= SPAWN_INTERVAL) {
             enemies[enemyCount] = InitEnemy((int)path[0].x, (int)path[0].y);
+            // ⭐️ Inicializa as variáveis de estado de ataque para o novo inimigo
+            enemyLastAttackTime[enemyCount] = 0.0f;
+            enemyTargetHero[enemyCount] = -1;
+            
             enemyCount++;
             spawnTimer = 0.0f;
         }
     }
 
-    // Atualiza movimento e checa chegada à torre
+    // 3. Atualiza movimento e checa chegada à torre (e adiciona ataque a heróis)
     for (int i = 0; i < enemyCount; i++) {
-        UpdateEnemy(&enemies[i]);
+        if (!enemies[i].active) continue;
 
+        // ⭐️ LÓGICA DE ATAQUE DO INIMIGO AO HERÓI
+        int targetHeroIndex = enemyTargetHero[i];
+        
+        // Se o inimigo não tem um alvo OU o alvo morreu/foi removido
+        if (targetHeroIndex == -1 || placedHeroes[targetHeroIndex].health <= 0) {
+            targetHeroIndex = -1; // Resetar o alvo
+
+            // Tenta encontrar um herói no alcance
+            float minDist = ENEMY_ATTACK_RANGE;
+            for (int j = 0; j < placedHeroCount; j++) {
+                if (placedHeroes[j].health > 0) { // Só mira em heróis vivos
+                    float dx = enemies[i].x - placedHeroes[j].x;
+                    float dy = enemies[i].y - placedHeroes[j].y;
+                    float dist = sqrt(dx*dx + dy*dy);
+                    if (dist <= minDist) { // Usa <= para mirar no herói que está no alcance
+                        minDist = dist;
+                        targetHeroIndex = j;
+                        break; // Alvo encontrado! (Poderia ser o mais próximo, mas o primeiro no alcance é mais simples)
+                    }
+                }
+            }
+            enemyTargetHero[i] = targetHeroIndex; // Define o novo alvo
+        }
+
+
+        if (targetHeroIndex != -1) {
+            // ⭐️ O inimigo PARA e ataca o herói!
+            
+            enemyLastAttackTime[i] += GetFrameTime();
+            if (enemyLastAttackTime[i] >= ENEMY_ATTACK_INTERVAL) {
+                // Ataca o herói
+                placedHeroes[targetHeroIndex].health -= ENEMY_DAMAGE_TO_HERO;
+                TraceLog(LOG_INFO, "Inimigo %d atacou Herói %d. Vida Heroi: %d", i, targetHeroIndex, placedHeroes[targetHeroIndex].health);
+                
+                // Checa se o herói morreu
+                if (placedHeroes[targetHeroIndex].health <= 0) {
+                    placedHeroes[targetHeroIndex].health = 0;
+                    // O herói morto será "removido" na próxima iteração do loop dos inimigos
+                    // ou por uma função de limpeza (que não está implementada).
+                    // Por enquanto, apenas zeramos a vida para que ele seja ignorado.
+                }
+                enemyLastAttackTime[i] = 0.0f;
+            }
+            // Não chama UpdateEnemy, pois o inimigo está atacando
+        } else {
+            // Se não há herói no alcance, o inimigo se move em direção à torre
+            UpdateEnemy(&enemies[i]);
+            enemyTargetHero[i] = -1; // Garante que o alvo foi resetado
+        }
+        
+        // Checa se chegou na torre (Lógica existente)
         if (EnemyReachedTower(enemies[i]) && enemies[i].active) {
-            // NOVO: Causa 20 de dano
             towerHealth -= ENEMY_DAMAGE_TO_CASTLE; 
             enemies[i].active = 0; // Desativa o inimigo após causar dano
 
@@ -341,8 +412,7 @@ void UpdateGame(void) {
         }
     }
 
-    // NOVO: Lógica de Vitória
-    // A fase termina quando o número máximo de inimigos (20) foi gerado E derrotado
+    // 4. NOVO: Lógica de Vitória
     if (enemyCount >= MAX_ENEMIES && enemies_defeated_count >= MAX_ENEMIES) {
         current_game_state = WAVE_WON; // MUDANÇA DE ESTADO: VENCEU
     }
@@ -406,6 +476,8 @@ void DrawGame(void) {
 
         // Desenhar heróis colocados
         for (int i = 0; i < placedHeroCount; i++) {
+            if (placedHeroes[i].health <= 0) continue; // Não desenha heróis mortos
+
             Color heroColor;
             switch (placedHeroes[i].tipo) {
                 case 0: heroColor = BLUE; break;
@@ -417,6 +489,9 @@ void DrawGame(void) {
             DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
             // Desenhar alcance (círculo semi-transparente)
             DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
+            // ⭐️ Desenhar alcance de ataque do inimigo (DEBUG)
+            // DrawCircleLines(enemies[i].x, enemies[i].y, ENEMY_ATTACK_RANGE, (Color){255, 0, 0, 100});
+            
             // Desenhar barra de vida dos heróis
             int barWidth = 40;
             int barHeight = 5;
