@@ -15,7 +15,8 @@ Enemy InitEnemy(int x, int y) {
         .y = y, 
         .health = 50, 
         .active = 1, 
-        .currentWaypoint = 0
+        .currentWaypoint = 0,
+        .recompensa_moedas = 50
     };
     return e;
 }

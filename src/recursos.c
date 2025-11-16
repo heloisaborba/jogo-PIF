@@ -19,7 +19,10 @@ int comprar_heroi(recursos *r) {
     return 0; // moedas insuficientes
 }
 
-// Recompensa por inimigo derrotado: adiciona 5 moedas
-void inimigo_morto(recursos *r) {
-    r->moedas += 5;
+// 💰 NOVA FUNÇÃO: Adiciona uma quantidade variável de moedas.
+// Substitui a antiga 'inimigo_morto' e atende à necessidade em game.c.
+void adicionar_moedas(recursos *r, int valor) {
+    if (valor > 0) {
+        r->moedas += valor;
+    }
 }

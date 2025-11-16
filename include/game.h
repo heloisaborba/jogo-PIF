@@ -43,6 +43,7 @@ typedef struct {
 extern Vector2 path[MAX_WAYPOINTS];
 
 // Declarações das funções do jogo
+void IniciarFase2(void);
 void InitGame(void);
 void UpdateGame(void);
 void DrawGame(void);

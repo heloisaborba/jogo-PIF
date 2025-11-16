@@ -8,6 +8,7 @@ typedef struct {
     int health;
     int active;
     int currentWaypoint; // NOVO: Índice do ponto de destino atual
+    int recompensa_moedas;
 } Enemy;
 
 Enemy InitEnemy(int x, int y);

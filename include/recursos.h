@@ -19,4 +19,5 @@ int comprar_heroi(recursos *r);
 // Aumenta as moedas em 5 quando um inimigo é derrotado
 void inimigo_morto(recursos *r);
 
+void adicionar_moedas(recursos *r, int valor);
 #endif
