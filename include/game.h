@@ -34,6 +34,7 @@ typedef struct {
     int tipo; // 0: Guerreiro, 1: Bardo, 2: Paladino, 3: Mago
     int dano;
     int alcance;
+    int health;
     float lastAttackTime;
     Texture2D texture;
 } PlacedHero;

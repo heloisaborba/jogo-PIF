@@ -269,6 +269,7 @@ void UpdateGame(void) {
             placedHeroes[placedHeroCount].tipo = selectedHeroType;
             placedHeroes[placedHeroCount].dano = herois[selectedHeroType].dano;
             placedHeroes[placedHeroCount].alcance = herois[selectedHeroType].alcance;
+            placedHeroes[placedHeroCount].health = 100; // Vida inicial dos heróis
             placedHeroes[placedHeroCount].lastAttackTime = 0.0f;
             placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
             placedHeroCount++;
@@ -407,7 +408,7 @@ void DrawGame(void) {
         for (int i = 0; i < placedHeroCount; i++) {
             Color heroColor;
             switch (placedHeroes[i].tipo) {
-                case 0: heroColor = BLUE; break; 
+                case 0: heroColor = BLUE; break;
                 case 1: heroColor = GREEN; break;
                 case 2: heroColor = YELLOW; break;
                 case 3: heroColor = PURPLE; break;
@@ -416,6 +417,13 @@ void DrawGame(void) {
             DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
             // Desenhar alcance (círculo semi-transparente)
             DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
+            // Desenhar barra de vida dos heróis
+            int barWidth = 40;
+            int barHeight = 5;
+            int barX = placedHeroes[i].x - barWidth / 2;
+            int barY = placedHeroes[i].y - 30;
+            DrawRectangle(barX, barY, barWidth, barHeight, RED);
+            DrawRectangle(barX, barY, (int)(barWidth * (placedHeroes[i].health / 100.0f)), barHeight, GREEN);
         }
     }
 
