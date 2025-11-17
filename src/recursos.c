@@ -2,7 +2,7 @@
 
 // Define o valor inicial de moedas
 void inicializar_recursos(recursos *r) {
-    r->moedas = 200;
+    r->moedas = 300;
 }
 
 // Retorna o total de moedas do jogador
