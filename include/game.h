@@ -1,23 +1,30 @@
-// game.h
+// game.h (VERSÃO CORRIGIDA)
+
 #ifndef GAME_H
 #define GAME_H
 
 #include "raylib.h"
 #include "recursos.h"
 
-#define CASTLE_MAX_HEALTH 100 // A vida inicial era 100
+#define CASTLE_MAX_HEALTH 100
 #define ENEMY_DAMAGE_TO_CASTLE 20
 
-#define MAX_WAYPOINTS 84  // Mude de 9 para 10
+#define MAX_WAYPOINTS 84
 #define MAX_ENEMIES 20
 #define MAX_HEROIS 4
 
-// NOVO ENUM PARA ESTADOS DO JOGO
+// 1. Definição do ENUM GameState (DEVE VIR PRIMEIRO)
 typedef enum {
+    MENU,
     PLAYING,
-    WAVE_WON,
-    GAME_OVER 
+    PAUSED, 
+    GAME_OVER,
+    WAVE_WON
 } GameState;
+
+// 2. Declaração da variável global (DEPOIS da definição do tipo)
+// REMOVEMOS A DECLARAÇÃO DUPLICADA DO FINAL
+extern GameState current_game_state;
 
 // Estrutura para heróis
 typedef struct {
@@ -39,8 +46,12 @@ typedef struct {
     Texture2D texture;
 } PlacedHero;
 
-// Declaração do caminho com o novo tamanho
+// Declaração do caminho
 extern Vector2 path[MAX_WAYPOINTS];
+
+// Variáveis globais de estado
+extern int enemies_defeated_count; // Contador para a condição de vitória
+extern int towerHealth;
 
 // Declarações das funções do jogo
 void IniciarFase2(void);
@@ -53,10 +64,9 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi);
 void DrawMenuHerois(void);
 void VerificarCliqueMenu(void);
 void DrawGameUI(void);
+void ReiniciarFase(void);
+void VoltarMenuPrincipal(void);
+void DrawPause(void);
 
-extern Vector2 path[MAX_WAYPOINTS];
-extern GameState current_game_state; 
-extern int enemies_defeated_count; // Contador para a condição de vitória
-extern int towerHealth;
 
-#endif
+#endif // GAME_H

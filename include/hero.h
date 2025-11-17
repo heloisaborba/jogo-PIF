@@ -10,4 +10,7 @@ Hero InitHero(int x, int y);
 void UpdateHero(Hero *h);
 void DrawHero(Hero h);
 
+// Variável global do herói principal
+extern Hero hero;
+
 #endif

@@ -4,9 +4,54 @@
 #include "enemy.h"
 #include "game.h"
 #include "recursos.h"
+#include "hero.h"
+#include "tower.h"
+#include "menu.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+
+
+// ==============================
+// TEXTURAS GLOBAIS DO JOGO
+// ==============================
+static Texture2D background;         // textura da fase 1
+static Texture2D backgroundFase2;    // textura da fase 2
+static Texture2D towerTexture;       // textura da torre/castelo
+
+// =======================
+// VARIÁVEIS GLOBAIS
+// =======================
+
+// Inimigos
+Enemy enemies[MAX_ENEMIES];
+int enemyCount;
+float enemyLastAttackTime[MAX_ENEMIES];
+int enemyTargetHero[MAX_ENEMIES];
+
+// Recursos e jogo
+recursos gameRecursos;
+
+// Spawn
+float spawnTimer;
+static const float SPAWN_INTERVAL = 2.0f;
+
+// Estado do jogo
+GameState current_game_state;
+int enemies_defeated_count;
+int towerHealth;
+
+// Menu
+bool menuAberto;
+Heroi herois[MAX_HEROIS];
+
+// Heróis colocados
+PlacedHero placedHeroes[MAX_HEROIS];
+int placedHeroCount;
+bool placementMode;
+int selectedHeroType;
+
+void ResetGame();
 
 #define MAX_ENEMIES 20
 
@@ -17,6 +62,125 @@
 #define ENEMY_ATTACK_RANGE 75.0f // Alcance de ataque dos inimigos (pixels)
 #define ENEMY_DAMAGE_TO_HERO 5 // Dano que o inimigo causa a um heroi
 #define ENEMY_ATTACK_INTERVAL 1.5f // Intervalo de ataque do inimigo (segundos)
+
+void DrawPause(void) {
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    // Fundo escurecido
+    DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.6f));
+
+    // Caixa central
+    int boxW = 400;
+    int boxH = 300;
+    int boxX = screenWidth / 2 - boxW / 2;
+    int boxY = screenHeight / 2 - boxH / 2;
+
+    DrawRectangleRounded((Rectangle){boxX, boxY, boxW, boxH}, 0.15f, 10, DARKGRAY);
+    DrawRectangleRoundedLines((Rectangle){boxX, boxY, boxW, boxH}, 0.15f, 10, WHITE);
+
+    // Título
+    DrawText("PAUSADO", boxX + 100, boxY + 20, 40, WHITE);
+
+    // ---- Botões ----
+    Rectangle btnContinuar = { boxX + 100, boxY + 90, 200, 45 };
+    Rectangle btnReiniciar = { boxX + 100, boxY + 150, 200, 45 };
+    Rectangle btnMenu = { boxX + 100, boxY + 210, 200, 45 };
+
+    Vector2 mouse = GetMousePosition();
+
+    // CONTINUAR
+    DrawRectangleRec(btnContinuar, CheckCollisionPointRec(mouse, btnContinuar) ? GRAY : DARKGRAY);
+    DrawText("Continuar", btnContinuar.x + 40, btnContinuar.y + 10, 25, WHITE);
+
+    // REINICIAR
+    DrawRectangleRec(btnReiniciar, CheckCollisionPointRec(mouse, btnReiniciar) ? GRAY : DARKGRAY);
+    DrawText("Reiniciar Fase", btnReiniciar.x + 25, btnReiniciar.y + 10, 25, WHITE);
+
+    // MENU PRINCIPAL
+    DrawRectangleRec(btnMenu, CheckCollisionPointRec(mouse, btnMenu) ? GRAY : DARKGRAY);
+    DrawText("Menu Principal", btnMenu.x + 20, btnMenu.y + 10, 25, WHITE);
+
+    // ----- LÓGICA DOS BOTÕES -----
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+        if (CheckCollisionPointRec(mouse, btnContinuar)) {
+            current_game_state = PLAYING;
+            return;
+        }
+
+        if (CheckCollisionPointRec(mouse, btnReiniciar)) {
+            ReiniciarFase();
+            return;
+        }
+
+        if (CheckCollisionPointRec(mouse, btnMenu)) {
+            VoltarMenuPrincipal();
+            return;
+        }
+    }
+}
+
+void ReiniciarFase(void) {
+
+    // Resetar inimigos
+    enemyCount = 0;
+    spawnTimer = 0;
+
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemies[i].active = 0;
+        enemyLastAttackTime[i] = 0;
+        enemyTargetHero[i] = -1;
+    }
+
+    // Resetar heróis colocados
+    placedHeroCount = 0;
+    placementMode = false;
+    selectedHeroType = -1;
+
+    // Reset do castelo
+    towerHealth = CASTLE_MAX_HEALTH;
+
+    // Reset recursos
+    gameRecursos.moedas = 100;  // ajuste se quiser outro valor
+
+    // Fechar menus
+    menuAberto = false;
+
+    // Estado principal
+    current_game_state = PLAYING;
+}
+
+void VoltarMenuPrincipal(void) {
+    // Retorna ao menu principal
+    current_game_state = MENU;
+
+    // Limpa inimigos
+    enemyCount = 0;
+    spawnTimer = 0;
+
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemies[i].active = 0;
+        enemyLastAttackTime[i] = 0;
+        enemyTargetHero[i] = -1;
+    }
+
+    // Limpa heróis colocados
+    placedHeroCount = 0;
+    placementMode = false;
+    selectedHeroType = -1;
+
+    // Reseta torre
+    towerHealth = CASTLE_MAX_HEALTH;
+
+    // Reseta moedas
+    gameRecursos.moedas = 100;
+
+    // Fecha menu de compra (caso esteja aberto)
+    menuAberto = false;
+}
+
+
 
 Vector2 path[NUM_WAYPOINTS] = {
     { 50, 565 }, { 65, 560 }, { 80, 555 }, { 95, 550 }, { 110, 545 },
@@ -46,37 +210,6 @@ Vector2 path[NUM_WAYPOINTS] = {
     { 608, 203 },
     { 645, 176 }
 };
-// ⭐️ VARIÁVEIS DE ESTADO DO INIMIGO (SIMULANDO CAMPOS EM ENEMY STRUCT)
-// Usamos arrays paralelos, pois não temos acesso direto à struct Enemy
-static float enemyLastAttackTime[MAX_ENEMIES] = {0.0f}; // Tempo desde o último ataque
-static int enemyTargetHero[MAX_ENEMIES] = {-1}; // Índice do herói alvo (-1 se não estiver atacando)
-
-
-static Enemy enemies[MAX_ENEMIES];
-static int enemyCount = 0;
-static Texture2D background;
-static Texture2D towerTexture;
-// ✨ ADIÇÃO 1: Variável para a textura da Fase 2
-static Texture2D backgroundFase2;
-static recursos gameRecursos;
-static float spawnTimer = 0.0f;
-static const float SPAWN_INTERVAL = 2.0f; // Spawn a new enemy every 2 seconds
-
-
-// Variáveis GLOBAIS de Estado (Removidas as duplicações)
-GameState current_game_state = PLAYING; 
-int enemies_defeated_count = 0; 
-int towerHealth = CASTLE_MAX_HEALTH; // Usa a constante definida em game.h
-
-// 💰 Variáveis do sistema de menu
-static bool menuAberto = false;
-static Heroi herois[MAX_HEROIS];
-
-// Heróis colocados no mapa
-static PlacedHero placedHeroes[MAX_HEROIS];
-static int placedHeroCount = 0;
-static bool placementMode = false;
-static int selectedHeroType = -1; // Tipo do herói a ser colocado
 
 // 💰 Inicializa os heróis disponíveis
 void InicializarHerois(void) {
@@ -146,7 +279,7 @@ void DrawMenuHerois(void) {
   
   // Título do menu
   DrawText("LOJA DE HERÓIS", screenWidth/2 - MeasureText("LOJA DE HERÓIS", 30)/2, 110, 30, GOLD);
-  DrawText("Pressione M para fechar", screenWidth/2 - MeasureText("Pressione M para fechar", 20)/2, 150, 20, LIGHTGRAY);
+  DrawText("Pressione H para fechar", screenWidth/2 - MeasureText("Pressione M para fechar", 20)/2, 150, 20, LIGHTGRAY);
   
   // Desenha os cards dos heróis - UM POUQUINHO MAIOR
   int cardWidth = 185; // Aumentado de 170 para 185
@@ -254,215 +387,323 @@ void IniciarFase2(void) {
 
 // Inicialização
 void InitGame(void) {
-  // Carrega as texturas
-  background = LoadTexture("resources/background_novo.jpg");
-  towerTexture = LoadTexture("resources/tower.png");
-    // ✨ ADIÇÃO 3: Carregar a nova textura da Fase 2
+
+    // ======================
+    // TEXTURAS
+    // ======================
+    background = LoadTexture("resources/background_novo.jpg");
+    towerTexture = LoadTexture("resources/tower.png");
     backgroundFase2 = LoadTexture("resources/backgroundFase2.jpg");
 
-  inicializar_recursos(&gameRecursos);
-  InicializarHerois(); // 💰 Inicializa o sistema de heróis
-  
-  towerHealth = CASTLE_MAX_HEALTH; // NOVO: Usa a constante de vida máxima
-  current_game_state = PLAYING; // NOVO: Inicia no estado PLAYING
-  enemies_defeated_count = 0; // NOVO: Zera o contador de vitória
-  enemyCount = 0; // Zera a contagem para iniciar o spawn
+    // ======================
+    // RECURSOS E HERÓIS
+    // ======================
+    inicializar_recursos(&gameRecursos);
+    InicializarHerois();
 
-  // Limpa os tempos de ataque dos inimigos
-  for(int i = 0; i < MAX_ENEMIES; i++) {
-    enemyLastAttackTime[i] = 0.0f;
-    enemyTargetHero[i] = -1;
-  }
+    // ======================
+    // ESTADOS INICIAIS
+    // ======================
+    current_game_state = PLAYING;
+    towerHealth = CASTLE_MAX_HEALTH;
+    enemies_defeated_count = 0;
+
+    // ======================
+    // INIMIGOS
+    // ======================
+    enemyCount = 0;
+    spawnTimer = 0;
+
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemies[i].active = 0;
+        enemyLastAttackTime[i] = 0;
+        enemyTargetHero[i] = -1;
+    }
+
+    // ======================
+    // HERÓIS COLOCADOS
+    // ======================
+    placedHeroCount = 0;
+    placementMode = false;
+    selectedHeroType = -1;
+
+    // ======================
+    // MENU DE COMPRA
+    // ======================
+    menuAberto = false;
+
+    // ----------------------
+    // Pronto para iniciar
+    // ----------------------
 }
+
 
 // Atualização
 void UpdateGame(void) {
-  // 💰 Alterna o menu com a tecla M
-  if (IsKeyPressed(KEY_M)) {
-    menuAberto = !menuAberto;
-  }
 
-  // NOVO: Se o jogo terminou ou está na tela de vitória/derrota, bloqueia a maioria das ações
-  if (current_game_state != PLAYING) {
-    
-        // ✨ ADIÇÃO 4: Lógica de clique do botão "CONTINUAR" na tela de vitória
-        if (current_game_state == WAVE_WON && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            int screenWidth = GetScreenWidth();
-            // Coordenadas do botão (DEVE ser as mesmas usadas em DrawGame)
-            Rectangle button_rect = { (screenWidth / 2) - 100, GetScreenHeight() / 2 + 50, 200, 50 };
-            
-            if (CheckCollisionPointRec(GetMousePosition(), button_rect)) {
-                IniciarFase2(); // Chama a função que inicia a Fase 2 e troca o fundo
-                return; // Sai da atualização para evitar processar o frame no estado antigo
+    // =========================================================
+    // 🔹 1. ABRIR / FECHAR PAUSE COM A TECLA P
+    // =========================================================
+    if (IsKeyPressed(KEY_P)) {
+        if (current_game_state == PLAYING) {
+            current_game_state = PAUSED;
+        }
+        else if (current_game_state == PAUSED) {
+            current_game_state = PLAYING;
+        }
+    }
+
+    // =========================================================
+    // 🔹 2. ESTADO PAUSADO — (REINICIAR / MENU / MENU DE HERÓIS)
+    // =========================================================
+
+    if (current_game_state == PAUSED) {
+
+        if (IsKeyPressed(KEY_R)) {
+            ResetGame();
+            current_game_state = PLAYING;
+            return;
+        }
+
+        if (IsKeyPressed(KEY_M)) {
+            VoltarMenuPrincipal(); // Chama a função que faz o cleanup completo
+            return;
+        }
+
+        // H dentro do pause
+        if (IsKeyPressed(KEY_H)) {
+            menuAberto = !menuAberto;
+            return;
+        }
+
+        if (menuAberto) {
+            VerificarCliqueMenu();
+            return;
+        }
+
+        return;
+    }
+
+    // =========================================================
+    // 🔹 ABRIR / FECHAR MENU DE HERÓIS (funciona SEMPRE)
+    // =========================================================
+    if (IsKeyPressed(KEY_H)) {
+        menuAberto = !menuAberto;  // alterna entre abrir e fechar
+        return;
+    }
+
+    // =========================================================
+    // 🔹 3. TELA DE VITÓRIA
+    // =========================================================
+    if (current_game_state == WAVE_WON) {
+
+        Rectangle botaoContinuar = {
+            (GetScreenWidth()/2) - 100,
+            GetScreenHeight()/2 + 50,
+            200,
+            50
+        };
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (CheckCollisionPointRec(GetMousePosition(), botaoContinuar)) {
+                IniciarFase2();
+                return;
             }
         }
-        
-    // Se menu estiver aberto, permite fechar (e processa compra se for rápida)
+
+        return;
+    }
+
+
+    // =========================================================
+    // 🔹 4. TELA DE GAME OVER
+    // =========================================================
+    if (current_game_state == GAME_OVER) {
+
+        Rectangle botaoMenu = {
+            (GetScreenWidth()/2) - 100,
+            GetScreenHeight()/2 + 50,
+            200,
+            50
+        };
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (CheckCollisionPointRec(GetMousePosition(), botaoMenu)) {
+                current_game_state = MENU;
+                return;
+            }
+        }
+
+        return;
+    }
+
+
+    // =========================================================
+    // 🔹 5. MENU DE COMPRA DE HERÓIS ABERTO
+    // =========================================================
     if (menuAberto) {
-      VerificarCliqueMenu();
-      // ... (Lógica de Compras rápidas) ...
+        VerificarCliqueMenu();
+        return;
     }
-    
-    return; // Sai se o jogo não está em andamento
-  }
-  
-  // Se o menu estiver aberto, processa apenas inputs do menu
-  if (menuAberto) {
-    VerificarCliqueMenu();
-    // ... (Lógica de Compras rápidas) ...
-    return; // Não atualiza o jogo enquanto o menu está aberto
-  }
 
-// ... (Resto da função UpdateGame inalterado: colocação de heróis, ataque de heróis, spawn de inimigos, movimento/ataque de inimigos) ...
-    
-  // Se estiver no modo de colocação, processa clique no mapa
-  if (placementMode) {
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-      Vector2 mousePos = GetMousePosition();
-      // Coloca o herói na posição clicada
-      placedHeroes[placedHeroCount].x = (int)mousePos.x;
-      placedHeroes[placedHeroCount].y = (int)mousePos.y;
-      placedHeroes[placedHeroCount].tipo = selectedHeroType;
-      placedHeroes[placedHeroCount].dano = herois[selectedHeroType].dano;
-      placedHeroes[placedHeroCount].alcance = herois[selectedHeroType].alcance;
-      placedHeroes[placedHeroCount].health = 100; // Vida inicial dos heróis
-      placedHeroes[placedHeroCount].lastAttackTime = 0.0f;
-      placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
-      placedHeroCount++;
-      TraceLog(LOG_INFO, "%s colocado no mapa!", herois[selectedHeroType].nome);
-      // Sai do modo de colocação
-      placementMode = false;
-      selectedHeroType = -1;
-    }
-    return; // Não atualiza o jogo enquanto no modo de colocação
-  }
-  
-  
-  // 1. Atualizar heróis colocados (Lógica de Ataque do Herói)
-  for (int i = 0; i < placedHeroCount; i++) {
-    if (placedHeroes[i].health <= 0) continue; // Herói morto não ataca
 
-    // Encontrar inimigo mais próximo no alcance
-    int targetEnemy = -1;
-    float minDist = placedHeroes[i].alcance;
-    for (int j = 0; j < enemyCount; j++) {
-      if (enemies[j].active) {
-        float dx = placedHeroes[i].x - enemies[j].x;
-        float dy = placedHeroes[i].y - enemies[j].y;
-        float dist = sqrt(dx*dx + dy*dy);
-        if (dist < minDist) {
-          minDist = dist;
-          targetEnemy = j;
+    // =========================================================
+    // 🔹 6. MODO DE POSICIONAMENTO DE HERÓI
+    // =========================================================
+    if (placementMode) {
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+            Vector2 mousePos = GetMousePosition();
+
+            placedHeroes[placedHeroCount].x = mousePos.x;
+            placedHeroes[placedHeroCount].y = mousePos.y;
+            placedHeroes[placedHeroCount].tipo = selectedHeroType;
+            placedHeroes[placedHeroCount].dano = herois[selectedHeroType].dano;
+            placedHeroes[placedHeroCount].alcance = herois[selectedHeroType].alcance;
+            placedHeroes[placedHeroCount].health = 100;
+            placedHeroes[placedHeroCount].lastAttackTime = 0;
+            placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
+
+            placedHeroCount++;
+
+            placementMode = false;
+            selectedHeroType = -1;
         }
-      }
+
+        return;
     }
 
-    // Atacar inimigo se encontrado
-    if (targetEnemy != -1) {
-      placedHeroes[i].lastAttackTime += GetFrameTime();
-      if (placedHeroes[i].lastAttackTime >= 1.0f) { // Ataque a cada 1 segundo
-        enemies[targetEnemy].health -= placedHeroes[i].dano;
-        
-        // NOVO: Lógica de morte do inimigo pelo herói
-        if (enemies[targetEnemy].health <= 0) {
-          
-          // ✨ ADICIONA AS MOEDAS AO JOGADOR AQUI
-          // Requer: o campo `recompensa_moedas` na struct Enemy
-          // Requer: a função `adicionar_moedas(&gameRecursos, valor)` em recursos.c/h
-          adicionar_moedas(&gameRecursos, enemies[targetEnemy].recompensa_moedas); 
-          
-          enemies[targetEnemy].active = 0;
-          enemies_defeated_count++; // Incrementa o contador de vitória
+
+    // =========================================================
+    // 🔹 7. LÓGICA NORMAL DO JOGO (somente PLAYING)
+    // =========================================================
+    if (current_game_state != PLAYING) return;
+
+
+    // --- ATAQUE DOS HERÓIS ---
+    for (int i = 0; i < placedHeroCount; i++) {
+        if (placedHeroes[i].health <= 0) continue;
+
+        float minDist = placedHeroes[i].alcance;
+        int targetEnemy = -1;
+
+        for (int j = 0; j < enemyCount; j++) {
+            if (!enemies[j].active) continue;
+
+            float dx = placedHeroes[i].x - enemies[j].x;
+            float dy = placedHeroes[i].y - enemies[j].y;
+            float dist = sqrt(dx*dx + dy*dy);
+
+            if (dist < minDist) {
+                minDist = dist;
+                targetEnemy = j;
+            }
         }
-        placedHeroes[i].lastAttackTime = 0.0f;
-      }
-    }
-  }
 
-  // 2. Spawn new enemies if tower is alive and not at max enemies
-  if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
-    spawnTimer += GetFrameTime();
-    if (spawnTimer >= SPAWN_INTERVAL) {
-      enemies[enemyCount] = InitEnemy((int)path[0].x, (int)path[0].y);
-      // ⭐️ Inicializa as variáveis de estado de ataque para o novo inimigo
-      enemyLastAttackTime[enemyCount] = 0.0f;
-      enemyTargetHero[enemyCount] = -1;
-      
-      enemyCount++;
-      spawnTimer = 0.0f;
-    }
-  }
+        if (targetEnemy != -1) {
+            placedHeroes[i].lastAttackTime += GetFrameTime();
+            if (placedHeroes[i].lastAttackTime >= 1.0f) {
 
-  // 3. Atualiza movimento e checa chegada à torre (e adiciona ataque a heróis)
-  for (int i = 0; i < enemyCount; i++) {
-    if (!enemies[i].active) continue;
+                enemies[targetEnemy].health -= placedHeroes[i].dano;
 
-    // ⭐️ LÓGICA DE ATAQUE DO INIMIGO AO HERÓI
-    int targetHeroIndex = enemyTargetHero[i];
-    
-    // Se o inimigo não tem um alvo OU o alvo morreu/foi removido
-    if (targetHeroIndex == -1 || placedHeroes[targetHeroIndex].health <= 0) {
-      targetHeroIndex = -1; // Resetar o alvo
+                if (enemies[targetEnemy].health <= 0) {
+                    adicionar_moedas(&gameRecursos, enemies[targetEnemy].recompensa_moedas);
+                    enemies[targetEnemy].active = 0;
+                    enemies_defeated_count++;
+                }
 
-      // Tenta encontrar um herói no alcance
-      float minDist = ENEMY_ATTACK_RANGE;
-      for (int j = 0; j < placedHeroCount; j++) {
-        if (placedHeroes[j].health > 0) { // Só mira em heróis vivos
-          float dx = enemies[i].x - placedHeroes[j].x;
-          float dy = enemies[i].y - placedHeroes[j].y;
-          float dist = sqrt(dx*dx + dy*dy);
-          if (dist <= minDist) { // Usa <= para mirar no herói que está no alcance
-            minDist = dist;
-            targetHeroIndex = j;
-            break; // Alvo encontrado! (Poderia ser o mais próximo, mas o primeiro no alcance é mais simples)
-          }
+                placedHeroes[i].lastAttackTime = 0;
+            }
         }
-      }
-      enemyTargetHero[i] = targetHeroIndex; // Define o novo alvo
     }
 
-    if (targetHeroIndex != -1) {
-      // ⭐️ O inimigo PARA e ataca o herói!
-      
-      enemyLastAttackTime[i] += GetFrameTime();
-      if (enemyLastAttackTime[i] >= ENEMY_ATTACK_INTERVAL) {
-        // Ataca o herói
-        placedHeroes[targetHeroIndex].health -= ENEMY_DAMAGE_TO_HERO;
-        TraceLog(LOG_INFO, "Inimigo %d atacou Herói %d. Vida Heroi: %d", i, targetHeroIndex, placedHeroes[targetHeroIndex].health);
-        
-        // Checa se o herói morreu
-        if (placedHeroes[targetHeroIndex].health <= 0) {
-          placedHeroes[targetHeroIndex].health = 0;
-          // O herói morto será "removido" na próxima iteração do loop dos inimigos
-          // ou por uma função de limpeza (que não está implementada).
-          // Por enquanto, apenas zeramos a vida para que ele seja ignorado.
+
+    // --- SPAWN DE INIMIGOS ---
+    if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
+        spawnTimer += GetFrameTime();
+        if (spawnTimer >= SPAWN_INTERVAL) {
+            enemies[enemyCount] = InitEnemy(path[0].x, path[0].y);
+            enemyLastAttackTime[enemyCount] = 0;
+            enemyTargetHero[enemyCount] = -1;
+            enemyCount++;
+            spawnTimer = 0;
         }
-        enemyLastAttackTime[i] = 0.0f;
-      }
-      // Não chama UpdateEnemy, pois o inimigo está atacando
-    } else {
-      // Se não há herói no alcance, o inimigo se move em direção à torre
-      UpdateEnemy(&enemies[i]);
-      enemyTargetHero[i] = -1; // Garante que o alvo foi resetado
     }
-    
-    // Checa se chegou na torre (Lógica existente)
-    if (EnemyReachedTower(enemies[i]) && enemies[i].active) {
-      towerHealth -= ENEMY_DAMAGE_TO_CASTLE; 
-      enemies[i].active = 0; // Desativa o inimigo após causar dano
 
-      if (towerHealth <= 0) {
-        towerHealth = 0;
-        current_game_state = GAME_OVER; // MUDANÇA DE ESTADO: PERDEU
-      }
+
+    // --- MOVIMENTO & ATAQUE DOS INIMIGOS ---
+    for (int i = 0; i < enemyCount; i++) {
+        if (!enemies[i].active) continue;
+
+        int targetHero = enemyTargetHero[i];
+
+        if (targetHero == -1 || placedHeroes[targetHero].health <= 0) {
+
+            targetHero = -1;
+            float minDist = ENEMY_ATTACK_RANGE;
+
+            for (int h = 0; h < placedHeroCount; h++) {
+                if (placedHeroes[h].health <= 0) continue;
+
+                float dx = enemies[i].x - placedHeroes[h].x;
+                float dy = enemies[i].y - placedHeroes[h].y;
+                float dist = sqrt(dx*dx + dy*dy);
+
+                if (dist <= minDist) {
+                    minDist = dist;
+                    targetHero = h;
+                    break;
+                }
+            }
+
+            enemyTargetHero[i] = targetHero;
+        }
+
+
+        if (targetHero != -1) {  // atacar herói
+
+            enemyLastAttackTime[i] += GetFrameTime();
+
+            if (enemyLastAttackTime[i] >= ENEMY_ATTACK_INTERVAL) {
+                placedHeroes[targetHero].health -= ENEMY_DAMAGE_TO_HERO;
+
+                if (placedHeroes[targetHero].health <= 0)
+                    placedHeroes[targetHero].health = 0;
+
+                enemyLastAttackTime[i] = 0;
+            }
+
+        } else {  // andar até a torre
+
+            UpdateEnemy(&enemies[i]);
+            enemyTargetHero[i] = -1;
+        }
+
+
+        if (EnemyReachedTower(enemies[i]) && enemies[i].active) {
+
+            towerHealth -= ENEMY_DAMAGE_TO_CASTLE;
+            enemies[i].active = 0;
+
+            if (towerHealth <= 0) {
+                towerHealth = 0;
+                current_game_state = GAME_OVER;
+            }
+        }
     }
-  }
 
-  // 4. NOVO: Lógica de Vitória
-  if (enemyCount >= MAX_ENEMIES && enemies_defeated_count >= MAX_ENEMIES) {
-    current_game_state = WAVE_WON; // MUDANÇA DE ESTADO: VENCEU
-  }
+
+    // =========================================================
+    // 🔹 8. CHECAR VITÓRIA
+    // =========================================================
+    if (enemyCount >= MAX_ENEMIES &&
+        enemies_defeated_count >= MAX_ENEMIES) {
+
+        current_game_state = WAVE_WON;
+    }
 }
+
 // 🔹 Função para desenhar UI normal
 void DrawGameUI(void) {
   // Fundo semi-transparente para as informações
@@ -475,7 +716,7 @@ void DrawGameUI(void) {
   DrawText(TextFormat("Moedas: %d", get_moedas(&gameRecursos)), 20, 50, 20, GOLD);
   
   // Instruções para abrir menu
-  DrawText("M - Abrir loja de herois", 20, 80, 15, LIGHTGRAY);
+  DrawText("H - Abrir loja de herois", 20, 80, 15, LIGHTGRAY);
 
   // Indicação de modo de colocação
   if (placementMode) {
@@ -485,101 +726,159 @@ void DrawGameUI(void) {
 
 // Desenho
 void DrawGame(void) {
-  BeginDrawing();
-  ClearBackground(BLACK);
+    BeginDrawing();
+    ClearBackground(BLACK);
 
-  // 🔹 Fundo
-  DrawTexturePro(
-    background,
-    (Rectangle){ 0, 0, background.width, background.height }, 
-    (Rectangle){ 0, 0, GetScreenWidth(), GetScreenHeight() }, 
-    (Vector2){ 0, 0 }, 
-    0.0f, 
-    WHITE 
-  );
+    // 🔹 Fundo
+    DrawTexturePro(
+        background,
+        (Rectangle){ 0, 0, background.width, background.height }, 
+        (Rectangle){ 0, 0, GetScreenWidth(), GetScreenHeight() }, 
+        (Vector2){ 0, 0 }, 
+        0.0f, 
+        WHITE 
+    );
 
-// ... (Restante de DrawGame inalterado) ...
-  // 🎯 DEBUG: Desenha o caminho dos inimigos
-  for (int i = 0; i < MAX_WAYPOINTS - 1; i++) {
-    DrawLineEx(path[i], path[i + 1], 3.0f, (Color){255, 255, 0, 128});
-  }
-  for (int i = 0; i < MAX_WAYPOINTS; i++) {
-    DrawCircle(path[i].x, path[i].y, 5.0f, BLUE);
-    DrawText(TextFormat("%d", i), path[i].x + 10, path[i].y - 10, 10, WHITE);
-  }
+    // =======================================================
+    // ➤ TELA DE PAUSA (AGORA DESENHA O MENU DE HERÓIS SE ESTIVER ABERTO)
+    // =======================================================
+    if (current_game_state == PAUSED) {
 
-  // 🔹 Torre
-  DrawTexture(towerTexture, 650, 100, WHITE);
-  
-  // 💰 UI Normal
-  DrawGameUI();
+        DrawPause();
 
-  // 🔹 Inimigos e Heróis (Só desenha se o jogo estiver rodando)
-  if (current_game_state == PLAYING) {
-    for (int i = 0; i < enemyCount; i++) {
-      DrawEnemy(enemies[i]);
+        // 🔹 Se o menu de heróis estiver aberto mesmo em PAUSED, desenha ele
+        if (menuAberto) {
+            DrawMenuHerois();
+        }
+
+        EndDrawing();
+        return;   // ⚠️ Para aqui! Não desenha o resto do jogo.
     }
 
-    // Desenhar heróis colocados
-    for (int i = 0; i < placedHeroCount; i++) {
-      if (placedHeroes[i].health <= 0) continue; // Não desenha heróis mortos
-
-      Color heroColor;
-      switch (placedHeroes[i].tipo) {
-        case 0: heroColor = BLUE; break;
-        case 1: heroColor = GREEN; break;
-        case 2: heroColor = YELLOW; break;
-        case 3: heroColor = PURPLE; break;
-        default: heroColor = WHITE; break;
-      }
-      DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
-      // Desenhar alcance (círculo semi-transparente)
-      DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
-      // ⭐️ Desenhar alcance de ataque do inimigo (DEBUG)
-      // DrawCircleLines(enemies[i].x, enemies[i].y, ENEMY_ATTACK_RANGE, (Color){255, 0, 0, 100});
-      
-      // Desenhar barra de vida dos heróis
-      int barWidth = 40;
-      int barHeight = 5;
-      int barX = placedHeroes[i].x - barWidth / 2;
-      int barY = placedHeroes[i].y - 30;
-      DrawRectangle(barX, barY, barWidth, barHeight, RED);
-      DrawRectangle(barX, barY, (int)(barWidth * (placedHeroes[i].health / 100.0f)), barHeight, GREEN);
+    // 🎯 DEBUG: Desenha o caminho dos inimigos
+    for (int i = 0; i < MAX_WAYPOINTS - 1; i++) {
+        DrawLineEx(path[i], path[i + 1], 3.0f, (Color){255, 255, 0, 128});
     }
-  }
+    for (int i = 0; i < MAX_WAYPOINTS; i++) {
+        DrawCircle(path[i].x, path[i].y, 5.0f, BLUE);
+        DrawText(TextFormat("%d", i), path[i].x + 10, path[i].y - 10, 10, WHITE);
+    }
 
-
-  // 💰 Desenha o menu se estiver aberto
-  if (menuAberto) {
-    DrawMenuHerois();
-  }
-  
-  // =======================================================
-  // NOVO: TELA DE ESTADO FINAL (VITÓRIA OU DERROTA)
-  // =======================================================
-
-  if (current_game_state == GAME_OVER) {
-    // TELA DE DERROTA
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.8f)); 
-    const char *message = "VOCÊ PERDEU! A TORRE FOI DESTRUÍDA.";
-    int message_len = MeasureText(message, 40);
-    DrawText(message, (GetScreenWidth() / 2) - (message_len / 2), GetScreenHeight() / 2 - 50, 40, WHITE);
+    // 🔹 Torre
+    DrawTexture(towerTexture, 650, 100, WHITE);
     
-  } else if (current_game_state == WAVE_WON) {
-    // TELA DE VITÓRIA
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(DARKGREEN, 0.8f)); 
-    
-    const char *message = "VOCÊ GANHOU! IR PARA A FASE 2";
-    int message_len = MeasureText(message, 40);
-    DrawText(message, (GetScreenWidth() / 2) - (message_len / 2), GetScreenHeight() / 2 - 50, 40, GOLD);
-    
-    // Exemplo de botão
-    Rectangle button_rect = { (GetScreenWidth() / 2) - 100, GetScreenHeight() / 2 + 50, 200, 50 };
-    DrawRectangleRec(button_rect, YELLOW);
-    DrawText("CONTINUAR", button_rect.x + 50, button_rect.y + 15, 20, BLACK);
-  }
+    // 💰 UI Normal
+    DrawGameUI();
 
-  EndDrawing();
+    // 🔹 Inimigos e Heróis (Só desenha se o jogo estiver rodando)
+    if (current_game_state == PLAYING) {
+
+        // Inimigos
+        for (int i = 0; i < enemyCount; i++) {
+            DrawEnemy(enemies[i]);
+        }
+
+        // Heróis
+        for (int i = 0; i < placedHeroCount; i++) {
+            if (placedHeroes[i].health <= 0) continue;
+
+            Color heroColor;
+            switch (placedHeroes[i].tipo) {
+                case 0: heroColor = BLUE; break;
+                case 1: heroColor = GREEN; break;
+                case 2: heroColor = YELLOW; break;
+                case 3: heroColor = PURPLE; break;
+                default: heroColor = WHITE; break;
+            }
+
+            DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 20, heroColor);
+            DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
+
+            // Barra de vida
+            int barWidth = 40;
+            int barHeight = 5;
+            int barX = placedHeroes[i].x - barWidth / 2;
+            int barY = placedHeroes[i].y - 30;
+
+            DrawRectangle(barX, barY, barWidth, barHeight, RED);
+            DrawRectangle(barX, barY, (int)(barWidth * (placedHeroes[i].health / 100.0f)), barHeight, GREEN);
+        }
+    }
+
+    // 💰 Menu de heróis (quando o jogo NÃO está pausado)
+    if (menuAberto) {
+        DrawMenuHerois();
+    }
+    
+    // =======================================================
+    // ➤ TELA DE DERROTA
+    // =======================================================
+    if (current_game_state == GAME_OVER) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.8f)); 
+        const char *message = "VOCÊ PERDEU! A TORRE FOI DESTRUÍDA.";
+        int message_len = MeasureText(message, 40);
+        DrawText(message, (GetScreenWidth() / 2) - (message_len / 2),
+                 GetScreenHeight() / 2 - 50, 40, WHITE);
+    }
+
+    // =======================================================
+    // ➤ TELA DE VITÓRIA
+    // =======================================================
+    else if (current_game_state == WAVE_WON) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(DARKGREEN, 0.8f));
+        
+        const char *message = "VOCÊ GANHOU! IR PARA A FASE 2";
+        int message_len = MeasureText(message, 40);
+        DrawText(message, (GetScreenWidth() / 2) - (message_len / 2),
+                 GetScreenHeight() / 2 - 50, 40, GOLD);
+        
+        Rectangle button_rect = { (GetScreenWidth() / 2) - 100,
+                                  GetScreenHeight() / 2 + 50,
+                                  200, 50 };
+        DrawRectangleRec(button_rect, YELLOW);
+        DrawText("CONTINUAR", button_rect.x + 50, button_rect.y + 15, 20, BLACK);
+    }
+
+    EndDrawing();
+}
+
+
+void ResetGame(void)
+{
+    // Resetar vida da torre
+    towerHealth = CASTLE_MAX_HEALTH;
+
+    // Resetar inimigos
+    enemyCount = 0;
+    enemies_defeated_count = 0;
+    spawnTimer = 0;
+
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        enemies[i].active = 0;
+        enemyLastAttackTime[i] = 0;
+        enemyTargetHero[i] = -1;
+    }
+
+    // Resetar heróis colocados
+    placedHeroCount = 0;
+
+    for (int i = 0; i < MAX_HEROIS; i++) {
+        placedHeroes[i].health = 0;
+        placedHeroes[i].x = 0;
+        placedHeroes[i].y = 0;
+        placedHeroes[i].tipo = -1;
+    }
+
+    // Resetar recursos
+    inicializar_recursos(&gameRecursos);
+
+    // Fechar menus e modos
+    menuAberto = false;
+    placementMode = false;
+    selectedHeroType = -1;
+
+    // Voltar ao gameplay
+    current_game_state = PLAYING;
 }
 
 // Finalização
