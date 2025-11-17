@@ -245,8 +245,38 @@ Vector2 pathFase2[NUM_WAYPOINTS] = {
     // Adicione os 83 pontos necessários ou ajuste NUM_WAYPOINTS se diferente
 };
 
+// CAMINHO (WAYPOINTS) - FASE 3 (MODIFICAR MANUALMENTE AQUI)
+Vector2 pathFase3[NUM_WAYPOINTS] = {
+    { 50, 565 }, { 65, 560 }, { 80, 555 }, { 95, 550 }, { 110, 545 },
+    { 125, 540 }, { 140, 535 }, { 155, 530 }, { 170, 525 }, { 185, 520 },
+    { 200, 515 }, { 215, 510 }, { 230, 505 }, { 245, 500 }, { 270, 495 },
+    { 300, 488 }, { 330, 480 }, { 360, 473 }, { 390, 465 }, { 420, 458 },
+    { 430, 435 }, { 450, 435 }, { 470, 435 }, { 490, 435 }, { 490, 420 },
+    { 490, 405 }, { 490, 390 }, { 480, 385 }, { 465, 380 }, { 450, 375 },
+    { 435, 370 }, { 420, 365 }, { 405, 360 }, { 390, 360 }, { 375, 366 },
+    { 360, 372 }, { 345, 378 }, { 330, 384 }, { 315, 390 }, { 300, 396 },
+    { 285, 402 }, { 270, 408 }, { 250, 420 }, { 230, 435 },
+    { 215, 427 }, { 200, 419 }, { 185, 411 }, { 170, 403 },
+    { 155, 395 }, { 140, 387 },
+    { 140, 372 },
+    { 155, 364 }, { 170, 356 }, { 185, 348 }, { 200, 340 },
+    { 215, 332 }, { 230, 324 }, { 245, 316 },
+    { 260, 316 }, { 245, 308 }, { 230, 300 }, { 215, 292 }, { 200, 284 },
+    { 185, 276 },
+    { 205, 271 }, { 225, 266 }, { 245, 261 }, { 265, 256 },
+    { 280, 249 }, { 295, 242 }, { 310, 235 },
+    { 325, 228 }, { 340, 221 }, { 360, 231 }, { 380, 241 }, { 400, 251 },
+    { 420, 261 }, { 440, 271 },
+    { 460, 251 },
+    { 497, 239 },
+    { 534, 227 },
+    { 571, 215 },
+    { 608, 203 },
+    { 645, 176 }
+};
+
 // Ponteiro para o caminho atual
-Vector2 *path = pathFase1;
+Vector2 *currentPath = pathFase1;
 
 // 💰 Inicializa os heróis disponíveis
 void InicializarHerois(void) {
@@ -693,7 +723,7 @@ void UpdateGame(void) {
                 
                 if (activeEnemies < MAX_ENEMIES) {
                     EnemyType newEnemyType = GetRandomEnemyType(); 
-                    enemies[enemyCount] = InitEnemy(path[0].x, path[0].y, newEnemyType);
+                    enemies[enemyCount] = InitEnemy(currentPath[0].x, currentPath[0].y, newEnemyType);
                     enemyLastAttackTime[enemyCount] = 0;
                     enemyTargetHero[enemyCount] = -1;
                     enemyCount++;
@@ -919,11 +949,11 @@ void DrawGame(void) {
 
     // 🎯 DEBUG: Desenha o caminho dos inimigos
     for (int i = 0; i < MAX_WAYPOINTS - 1; i++) {
-        DrawLineEx(path[i], path[i + 1], 3.0f, (Color){255, 255, 0, 128});
+        DrawLineEx(currentPath[i], currentPath[i + 1], 3.0f, (Color){255, 255, 0, 128});
     }
     for (int i = 0; i < MAX_WAYPOINTS; i++) {
-        DrawCircle(path[i].x, path[i].y, 5.0f, BLUE);
-        DrawText(TextFormat("%d", i), path[i].x + 10, path[i].y - 10, 10, WHITE);
+        DrawCircle(currentPath[i].x, currentPath[i].y, 5.0f, BLUE);
+        DrawText(TextFormat("%d", i), currentPath[i].x + 10, currentPath[i].y - 10, 10, WHITE);
     }
 
     // 🔹 Torre

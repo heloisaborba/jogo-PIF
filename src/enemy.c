@@ -1,5 +1,5 @@
 #include "enemy.h"
-#include "game.h"    // ⭐️ Para acessar NUM_WAYPOINTS e path
+#include "game.h"    // ⭐️ Para acessar NUM_WAYPOINTS e currentPath
 #include <stdlib.h>
 #include <math.h>    // ⭐️ Para sqrtf
 
@@ -79,7 +79,7 @@ void UpdateEnemy(Enemy *e) {
     
     // Movimento pelos waypoints
     if (e->currentWaypoint < NUM_WAYPOINTS - 1) {
-        Vector2 target = path[e->currentWaypoint + 1];
+        Vector2 target = currentPath[e->currentWaypoint + 1];
         Vector2 direction = {
             target.x - e->x,
             target.y - e->y

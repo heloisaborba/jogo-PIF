@@ -10,11 +10,12 @@
 #define ENEMY_DAMAGE_TO_CASTLE 20
 
 #define NUM_WAYPOINTS 84
-extern Vector2 path[NUM_WAYPOINTS];
-
 #define MAX_WAYPOINTS 84
 #define MAX_ENEMIES 20
 #define MAX_HEROIS 4
+
+// Declaração do caminho atual
+extern Vector2 *currentPath;
 
 // 1. Definição do ENUM GameState (DEVE VIR PRIMEIRO)
 typedef enum {
