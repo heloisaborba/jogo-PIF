@@ -9,6 +9,9 @@
 #define CASTLE_MAX_HEALTH 100
 #define ENEMY_DAMAGE_TO_CASTLE 20
 
+#define NUM_WAYPOINTS 84
+extern Vector2 path[NUM_WAYPOINTS];
+
 #define MAX_WAYPOINTS 84
 #define MAX_ENEMIES 20
 #define MAX_HEROIS 4
@@ -37,13 +40,15 @@ typedef struct {
 
 // Estrutura para heróis colocados no mapa
 typedef struct {
-    int x, y;
-    int tipo; // 0: Guerreiro, 1: Bardo, 2: Paladino, 3: Mago
+    float x, y;
+    int tipo;
     int dano;
     int alcance;
     int health;
     float lastAttackTime;
     Texture2D texture;
+    bool is_burning;      // Para efeito de queima do dragão
+    float burn_timer;     // Tempo restante de queima
 } PlacedHero;
 
 // Declaração do caminho
