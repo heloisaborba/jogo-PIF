@@ -86,7 +86,7 @@ void InicializarHerois(void) {
   herois[0].dano = 10;
   herois[0].alcance = 150;
     // ✨ Descomentar carregamento (Se não estiver assim, ele não funciona)
-    herois[0].texture = LoadTexture("resources/perfil_guerreiro.png");
+    herois[0].texture = LoadTexture("resources/Cavaleiro.png");
   
   // Herói 2: Bardo
   strcpy(herois[1].nome, "Bardo");
@@ -94,7 +94,7 @@ void InicializarHerois(void) {
   herois[1].dano = 20;
   herois[1].alcance = 300;
     // ✨ Descomentar carregamento
-    herois[1].texture = LoadTexture("resources/perfil_bardo.png");
+    herois[1].texture = LoadTexture("resources/Bardo.png");
   
   // Herói 3: Paladino
   strcpy(herois[2].nome, "Paladino");
@@ -102,7 +102,7 @@ void InicializarHerois(void) {
   herois[2].dano = 15;
   herois[2].alcance = 200;
     // ✨ Descomentar carregamento
-    herois[2].texture = LoadTexture("resources/perfil_paladino.png");
+    herois[2].texture = LoadTexture("resources/Paladino.png");
   
   // Herói 4: Mago
   strcpy(herois[3].nome, "Mago");
@@ -110,7 +110,7 @@ void InicializarHerois(void) {
   herois[3].dano = 25;
   herois[3].alcance = 250;
     // ✨ Descomentar carregamento
-    herois[3].texture = LoadTexture("resources/perfil_mago.png");
+    herois[3].texture = LoadTexture("resources/SapoMago.png");
 }
 
 // 💰 Função para comprar herói específico
