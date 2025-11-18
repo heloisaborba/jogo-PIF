@@ -283,29 +283,29 @@ void InicializarHerois(void) {
   // Heroi 1: Guerreiro (TIPO 0)
   strcpy(herois[0].nome, "Guerreiro");
   herois[0].custo = 50;
-  herois[0].dano = 40;
-  herois[0].alcance = 150;
+  herois[0].dano = 60;
+  herois[0].alcance = 40;
   herois[0].texture = LoadTexture("resources/Cavaleiro.png");
   
   // Herói 2: Bardo (TIPO 1)
   strcpy(herois[1].nome, "Bardo");
   herois[1].custo = 100;
-  herois[1].dano = 60;
-  herois[1].alcance = 300;
+  herois[1].dano = 50;
+  herois[1].alcance = 110;
   herois[1].texture = LoadTexture("resources/Bardo.png");
   
   // Herói 3: Paladino (TIPO 2)
   strcpy(herois[2].nome, "Paladino");
-  herois[2].custo = 200;
-  herois[2].dano = 55;
-  herois[2].alcance = 200;
+  herois[2].custo = 120;
+  herois[2].dano = 65;
+  herois[2].alcance = 120;
   herois[2].texture = LoadTexture("resources/Paladino.png");
   
   // Herói 4: Mago (TIPO 3)
   strcpy(herois[3].nome, "Mago");
-  herois[3].custo = 150;
-  herois[3].dano = 100;
-  herois[3].alcance = 250;
+  herois[3].custo = 180;
+  herois[3].dano = 95;
+  herois[3].alcance = 140;
   herois[3].texture = LoadTexture("resources/SapoMago.png");
 }
 
@@ -331,65 +331,97 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
 
 // 💰 Função para desenhar o menu de heróis
 void DrawMenuHerois(void) {
-  int screenWidth = GetScreenWidth();
-  int screenHeight = GetScreenHeight();
-  
-  // Fundo semi-transparente para o menu
-  DrawRectangle(40, 90, screenWidth - 80, screenHeight - 180, (Color){0, 0, 0, 220});
-  
-  // Borda do menu
-  DrawRectangleLines(40, 90, screenWidth - 80, screenHeight - 180, GOLD);
-  
-  // Título do menu
-  DrawText("LOJA DE HERÓIS", screenWidth/2 - MeasureText("LOJA DE HERÓIS", 30)/2, 110, 30, GOLD);
-  DrawText("Pressione H para fechar", screenWidth/2 - MeasureText("Pressione M para fechar", 20)/2, 150, 20, LIGHTGRAY);
-  
-  // Desenha os cards dos heróis
-  int cardWidth = 185; 
-  int cardHeight = 245; 
-  int spacing = 20;   
-  int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
-  int startY = 190;
-  
-  for (int i = 0; i < MAX_HEROIS; i++) {
-    int cardX = startX + i * (cardWidth + spacing);
-    int cardY = startY;
-    
-    // Card background
-    Color cardColor = (Color){50, 50, 80, 255};
-    DrawRectangle(cardX, cardY, cardWidth, cardHeight, cardColor);
-    DrawRectangleLines(cardX, cardY, cardWidth, cardHeight, LIGHTGRAY);
-    
-    // Nome do herói
-    DrawText(herois[i].nome, cardX + cardWidth/2 - MeasureText(herois[i].nome, 20)/2, cardY + 20, 20, YELLOW);
-    
-    // Ícone/textura do herói
-    int textureSize = 95; 
-    int textureX = cardX + (cardWidth - textureSize) / 2;
-    int textureY = cardY + 50;
-    DrawTexturePro(herois[i].texture,
-           (Rectangle){0, 0, herois[i].texture.width, herois[i].texture.height},
-           (Rectangle){textureX, textureY, textureSize, textureSize},
-           (Vector2){0, 0}, 0.0f, WHITE);
-    
-    // Estatísticas
-    DrawText(TextFormat("Custo: %d$", herois[i].custo), cardX + 20, cardY + 160, 17, GOLD);
-    DrawText(TextFormat("Dano: %d", herois[i].dano), cardX + 20, cardY + 180, 17, RED);
-    DrawText(TextFormat("Alcance: %d", herois[i].alcance), cardX + 20, cardY + 200, 17, BLUE);
-    
-    // Botão de compra
-    Color btnColor = (gameRecursos.moedas >= herois[i].custo) ? GREEN : RED;
-    DrawRectangle(cardX + 20, cardY + cardHeight - 40, cardWidth - 40, 30, btnColor);
-    DrawText("COMPRAR", cardX + cardWidth/2 - MeasureText("COMPRAR", 17)/2, cardY + cardHeight - 35, 17, WHITE);
-    
-    // Número da tecla para comprar rápido
-    DrawText(TextFormat("[%d]", i + 1), cardX + cardWidth - 25, cardY + cardHeight - 35, 17, YELLOW);
-  }
-  
-  // Instruções no rodapé
-  DrawText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 
-       screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 17)/2, 
-       startY + cardHeight + 25, 17, LIGHTGRAY);
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    // Fundo do menu (mais alto)
+    DrawRectangle(40, 40, screenWidth - 80, screenHeight - 60, (Color){0, 0, 0, 220});
+    DrawRectangleLines(40, 40, screenWidth - 80, screenHeight - 60, GOLD);
+
+    // Título
+    DrawText("LOJA DE HERÓIS", screenWidth/2 - MeasureText("LOJA DE HERÓIS", 30)/2, 60, 30, GOLD);
+    DrawText("Pressione H para fechar",
+             screenWidth/2 - MeasureText("Pressione H para fechar", 20)/2,
+             100, 20, LIGHTGRAY);
+
+    // Tamanho dos cards
+    int cardWidth  = 170;
+    int cardHeight = 300;   // Novo tamanho maior
+
+    int spacing = 20;
+    int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
+    int startY = 160;
+
+    for (int i = 0; i < MAX_HEROIS; i++) {
+        int cardX = startX + i * (cardWidth + spacing);
+        int cardY = startY;
+
+        // Card
+        DrawRectangle(cardX, cardY, cardWidth, cardHeight, (Color){50, 50, 80, 255});
+        DrawRectangleLines(cardX, cardY, cardWidth, cardHeight, LIGHTGRAY);
+
+        // Nome centralizado
+        DrawText(herois[i].nome,
+                 cardX + cardWidth/2 - MeasureText(herois[i].nome, 22)/2,
+                 cardY + 15,
+                 22, YELLOW);
+
+        // Ícone centralizado
+        int textureSize = 95;
+        int textureX = cardX + (cardWidth - textureSize) / 2;
+        int textureY = cardY + 60;
+        DrawTexturePro(herois[i].texture,
+                       (Rectangle){0, 0, herois[i].texture.width, herois[i].texture.height},
+                       (Rectangle){textureX, textureY, textureSize, textureSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+
+        // Estatísticas centralizadas
+        int statsStartY = cardY + 170;  // ajustado para centralizar melhor
+
+        char custoTxt[32];
+        char danoTxt[32];
+        char alcanceTxt[32];
+
+        sprintf(custoTxt,   "Custo: %d$", herois[i].custo);
+        sprintf(danoTxt,    "Dano: %d",   herois[i].dano);
+        sprintf(alcanceTxt, "Alcance: %d",herois[i].alcance);
+
+        DrawText(custoTxt,
+                 cardX + cardWidth/2 - MeasureText(custoTxt, 18)/2,
+                 statsStartY,
+                 18, GOLD);
+
+        DrawText(danoTxt,
+                 cardX + cardWidth/2 - MeasureText(danoTxt, 18)/2,
+                 statsStartY + 25,
+                 18, RED);
+
+        DrawText(alcanceTxt,
+                 cardX + cardWidth/2 - MeasureText(alcanceTxt, 18)/2,
+                 statsStartY + 50,
+                 18, BLUE);
+
+        // Botão
+        Color btnColor = (gameRecursos.moedas >= herois[i].custo) ? GREEN : RED;
+
+        int btnWidth  = cardWidth - 40;
+        int btnHeight = 35;
+        int btnX = cardX + (cardWidth - btnWidth) / 2;
+        int btnY = cardY + cardHeight - btnHeight - 15;
+
+        DrawRectangle(btnX, btnY, btnWidth, btnHeight, btnColor);
+
+        DrawText("COMPRAR",
+                 btnX + btnWidth/2 - MeasureText("COMPRAR", 18)/2,
+                 btnY + 5,
+                 18, WHITE);
+    }
+
+    // Rodapé
+    DrawText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões",
+             screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 18)/2,
+             startY + cardHeight + 40,
+             18, LIGHTGRAY);
 }
 
 // 💰 Função para verificar clique nos botões do menu
