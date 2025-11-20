@@ -284,7 +284,7 @@ void InicializarHerois(void) {
   strcpy(herois[0].nome, "Guerreiro");
   herois[0].custo = 50;
   herois[0].dano = 60;
-  herois[0].alcance = 40;
+  herois[0].alcance = 80;
   herois[0].texture = LoadTexture("resources/Cavaleiro.png");
   
   // Herói 2: Bardo (TIPO 1)
@@ -656,7 +656,7 @@ void UpdateGame(void) {
 
             Vector2 mousePos = GetMousePosition();
 
-            int heroSize = 60;
+            int heroSize = 80;
             int halfSize = heroSize / 2;
             int x = (int)mousePos.x;
             int y = (int)mousePos.y;
@@ -1018,21 +1018,21 @@ void DrawGame(void) {
             // Desenhar textura do herói
             DrawTexturePro(placedHeroes[i].texture,
                 (Rectangle){0, 0, placedHeroes[i].texture.width, placedHeroes[i].texture.height},
-                (Rectangle){placedHeroes[i].x - 25, placedHeroes[i].y - 25, 50, 50},
-                (Vector2){25, 25}, 0.0f, WHITE);
+                (Rectangle){placedHeroes[i].x - 40, placedHeroes[i].y - 40, 80, 80},
+                (Vector2){40, 40}, 0.0f, WHITE);
 
             DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, placedHeroes[i].alcance, (Color){heroColor.r, heroColor.g, heroColor.b, 100});
 
             // Indicador de Queima no Herói
             if (placedHeroes[i].is_burning) {
-                DrawCircle(placedHeroes[i].x + 15, placedHeroes[i].y - 15, 5, ORANGE);
+                DrawCircle(placedHeroes[i].x + 20, placedHeroes[i].y - 20, 5, ORANGE);
             }
 
             // Barra de vida
             int barWidth = 40;
             int barHeight = 5;
             int barX = placedHeroes[i].x - barWidth / 2;
-            int barY = placedHeroes[i].y - 30;
+            int barY = placedHeroes[i].y - 50;
 
             DrawRectangle(barX, barY, barWidth, barHeight, RED);
             DrawRectangle(barX, barY, (int)(barWidth * (placedHeroes[i].health / 100.0f)), barHeight, GREEN);
