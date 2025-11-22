@@ -144,7 +144,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
 
         switch (currentPersonagem) {
             case 0:
-                nome = "CAVALEIRO";
+                nome = "O CAVALEIRO";
                 nomeCor = (Color){255, 215, 0, 255}; // Dourado
                 descricao[0] = "Espada de aço templário";
                 descricao[1] = "Armadura de placas reais";
@@ -154,7 +154,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 break;
 
             case 1:
-                nome = "MAGO";
+                nome = "O MAGO";
                 nomeCor = (Color){100, 200, 100, 255}; // Verde
                 descricao[0] = "Orbe dos elementos antigos";
                 descricao[1] = "Conhecimento arcano proibido";
@@ -164,7 +164,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 break;
 
             case 2:
-                nome = "BARDO";
+                nome = "O BARDO";
                 nomeCor = (Color){100, 150, 255, 255}; // Azul
                 descricao[0] = "Canções de batalha ancestral";
                 descricao[1] = "Alaúde das terras distantes";
@@ -174,7 +174,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 break;
 
             default:
-                nome = "PALADINO";
+                nome = "O PALADINO";
                 nomeCor = (Color){180, 100, 220, 255}; // Roxo
                 descricao[0] = "Escudo sagrado abençoado";
                 descricao[1] = "Cura pelas mãos divinas";
