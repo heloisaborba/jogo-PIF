@@ -11,17 +11,16 @@
 #include <string.h>
 #include <math.h>
 
-int currentWave;              // Fase atual (1, 2, 3)
-const int MAX_WAVES = 3;      // Total de fases
-const int WAVE_REWARD = 150;
+const int WAVE_SIZE[] = {0, 15, 25, 40};
 
 // ==============================
 // TEXTURAS GLOBAIS DO JOGO
 // ==============================
-static Texture2D background;         // textura da fase 1
-static Texture2D backgroundFase2;    // textura da fase 2
-static Texture2D towerTexture;       // textura da torre/castelo
-
+// ⚠️ NO SEU ARQUIVO .c (ex: src/game.c), onde a variável é definida
+Texture2D background;
+Texture2D backgroundFase2; 
+Texture2D backgroundFase3;
+Texture2D towerTexture;
 // =======================
 // VARIÁVEIS GLOBAIS
 // =======================
@@ -35,7 +34,7 @@ int enemyTargetHero[MAX_ENEMIES];
 // Recursos e jogo
 recursos gameRecursos;
 
-// ⭐️ NOVO: Status da Torre (para o Dragão)
+// NOVO: Status da Torre (para o Dragão)
 bool is_tower_burning;
 float tower_burn_timer;
 
@@ -58,15 +57,37 @@ int placedHeroCount;
 bool placementMode;
 int selectedHeroType;
 
-void ResetGame();
+// =======================
+// VARIÁVEIS GLOBAIS - CAMINHOS
+// =======================
+Vector2 pathInferior[84];      // Caminho de baixo
+Vector2 pathSuperior[96];       // Caminho de cima
+bool useMultiplePaths = false;                  // Se deve usar múltiplos caminhos
+int activePathCount = 1;                        // Número de caminhos ativos
 
+// =======================
+// VARIÁVEIS GLOBAIS - WAVES/FASES
+// =======================
+int currentWave;  
+int total_enemies_spawned = 0;                              // Fase atual (1, 2, 3)
+const int MAX_WAVES = 3;                       // Total de fases
+const int WAVE_REWARD = 150;                   // Recompensa por wave
+
+// =======================
+// DEFINIÇÕES DE CAMINHOS
+// =======================
+#define NUM_WAYPOINTS_BAIXO 84  // TOTAL DE PONTOS para caminho inferior
+#define NUM_WAYPOINTS_CIMA 96   // TOTAL DE PONTOS para caminho superior
+#define MAX_PATHS 2             // Máximo de caminhos simultâneos
+
+// =======================
+// OUTRAS DEFINIÇÕES
+// =======================
 #define MAX_ENEMIES 20
-
-#define NUM_WAYPOINTS 84 // TOTAL DE PONTOS
-// #define ENEMY_DAMAGE_TO_CASTLE 20 // REMOVIDO: Agora o dano vem da struct Enemy
-// #define ENEMY_DAMAGE_TO_HERO 5 // REMOVIDO: Agora o dano vem da struct Enemy
 #define ENEMY_ATTACK_RANGE 75.0f // Alcance de ataque dos inimigos (pixels)
 #define ENEMY_ATTACK_INTERVAL 1.5f // Intervalo de ataque do inimigo (segundos)
+
+void ResetGame();
 
 // ⭐️ NOVO: Função para obter um tipo de inimigo com base na frequência
 int GetRandomEnemyType() {
@@ -84,6 +105,21 @@ int GetRandomEnemyType() {
     }
 }
 
+void GetCurrentPaths(Vector2** paths, int* pathLengths, int* pathCount) {
+    if (currentWave == 1) {
+        // Fase 1: apenas caminho inferior
+        paths[0] = pathInferior;
+        pathLengths[0] = NUM_WAYPOINTS_BAIXO;
+        *pathCount = 1;
+    } else {
+        // Fase 2 e 3: ambos os caminhos
+        paths[0] = pathInferior;  // Caminho inferior
+        paths[1] = pathSuperior;  // Caminho superior  
+        pathLengths[0] = NUM_WAYPOINTS_BAIXO;
+        pathLengths[1] = NUM_WAYPOINTS_CIMA;
+        *pathCount = 2;
+    }
+}
 
 void DrawPause(void) {
     int screenWidth = GetScreenWidth();
@@ -208,7 +244,7 @@ void VoltarMenuPrincipal(void) {
 
 
 // CAMINHO (WAYPOINTS) - FASE 1
-Vector2 pathFase1[NUM_WAYPOINTS] = {
+Vector2 pathInferior[84] = {
     { 50, 565 }, { 65, 560 }, { 80, 555 }, { 95, 550 }, { 110, 545 },
     { 125, 540 }, { 140, 535 }, { 155, 530 }, { 170, 525 }, { 185, 520 },
     { 200, 515 }, { 215, 510 }, { 230, 505 }, { 245, 500 }, { 270, 495 },
@@ -237,46 +273,40 @@ Vector2 pathFase1[NUM_WAYPOINTS] = {
     { 645, 176 }
 };
 
-// CAMINHO (WAYPOINTS) - FASE 2 (MODIFICAR MANUALMENTE AQUI)
-Vector2 pathFase2[NUM_WAYPOINTS] = {
-    // Insira os waypoints da Fase 2 aqui manualmente
-    // Exemplo: { x, y }, { x, y }, ...
-    { 0, 0 }, // Placeholder - substitua pelos pontos desejados
-    // Adicione os 83 pontos necessários ou ajuste NUM_WAYPOINTS se diferente
-};
+Vector2 pathSuperior[96] = {
+    { 485, 15 },{ 481, 18 },{ 479, 19 },{ 477, 22 },{ 473, 26 },
+    { 464, 29 },{ 464, 30 },{ 459, 33 },{ 450, 39 },{ 442, 45 },
+    { 435, 49 },{ 431, 50 },{ 423, 55 },{ 413, 58 },
+    { 409, 60 },{ 403, 63 },{ 394, 65 },
+    { 383, 68 },{ 371, 73 },
+    { 364, 77 },
+    { 351, 81 },{ 339, 85 },{ 330, 89 },{ 322, 92 },{ 312, 95 },
+    { 303, 100 },
+    { 287, 106 },{ 275, 112 },{ 264, 117 },
+    { 259, 121 },{ 253, 125 },
+    { 245, 129 },{ 233, 133 },{ 219, 140 },{ 210, 144 },{ 198, 148 },
+    { 189, 151 },{ 177, 156 },{ 160, 162 },{ 149, 166 },{ 139, 172 },
+    { 134, 176 },{ 127, 183 },{ 123, 189 },{ 122, 194 },{ 120, 203 },
+    { 120, 208 },{ 126, 214 },{ 135, 220 },{ 147, 225 },
+    { 161, 231 },{ 173, 233 },{ 186, 237 },{ 199, 243 },
+    { 225, 254 },{ 227, 254 },{ 232, 254 },
+    { 244, 255 },{ 253, 255 },
+    { 257, 255 },{ 258, 254 },{ 259, 250 },{ 262, 246 },{ 271, 242 },
+    { 283, 237 },{ 292, 234 },{ 304, 231 },{ 316, 225 },
+    { 326, 221 },{ 335, 219 },
+    { 348, 223 },
+    { 366, 235 },{ 372, 237 },{ 384, 241 },{ 396, 244 },
+    { 412, 248 },{ 435, 251 },{ 450, 251 },
+    { 457, 247 },{ 470, 243 },{ 477, 239 },{ 490, 235 },{ 505, 230 },
+    { 517, 224 },{ 527, 219 },{ 538, 214 },{ 549, 208 },{ 568, 200 },
+    { 581, 195 },{ 589, 190 },{ 603, 184 },{ 615, 179 },
+    { 625, 172 },{ 635, 162 },{ 643, 155 },
+    { 652, 149 }
+};;
 
-// CAMINHO (WAYPOINTS) - FASE 3 (MODIFICAR MANUALMENTE AQUI)
-Vector2 pathFase3[NUM_WAYPOINTS] = {
-    { 50, 565 }, { 65, 560 }, { 80, 555 }, { 95, 550 }, { 110, 545 },
-    { 125, 540 }, { 140, 535 }, { 155, 530 }, { 170, 525 }, { 185, 520 },
-    { 200, 515 }, { 215, 510 }, { 230, 505 }, { 245, 500 }, { 270, 495 },
-    { 300, 488 }, { 330, 480 }, { 360, 473 }, { 390, 465 }, { 420, 458 },
-    { 430, 435 }, { 450, 435 }, { 470, 435 }, { 490, 435 }, { 490, 420 },
-    { 490, 405 }, { 490, 390 }, { 480, 385 }, { 465, 380 }, { 450, 375 },
-    { 435, 370 }, { 420, 365 }, { 405, 360 }, { 390, 360 }, { 375, 366 },
-    { 360, 372 }, { 345, 378 }, { 330, 384 }, { 315, 390 }, { 300, 396 },
-    { 285, 402 }, { 270, 408 }, { 250, 420 }, { 230, 435 },
-    { 215, 427 }, { 200, 419 }, { 185, 411 }, { 170, 403 },
-    { 155, 395 }, { 140, 387 },
-    { 140, 372 },
-    { 155, 364 }, { 170, 356 }, { 185, 348 }, { 200, 340 },
-    { 215, 332 }, { 230, 324 }, { 245, 316 },
-    { 260, 316 }, { 245, 308 }, { 230, 300 }, { 215, 292 }, { 200, 284 },
-    { 185, 276 },
-    { 205, 271 }, { 225, 266 }, { 245, 261 }, { 265, 256 },
-    { 280, 249 }, { 295, 242 }, { 310, 235 },
-    { 325, 228 }, { 340, 221 }, { 360, 231 }, { 380, 241 }, { 400, 251 },
-    { 420, 261 }, { 440, 271 },
-    { 460, 251 },
-    { 497, 239 },
-    { 534, 227 },
-    { 571, 215 },
-    { 608, 203 },
-    { 645, 176 }
-};
 
 // Ponteiro para o caminho atual
-Vector2 *currentPath = pathFase1;
+Vector2 *currentPath = pathInferior;
 
 // 💰 Inicializa os heróis disponíveis
 void InicializarHerois(void) {
@@ -469,7 +499,8 @@ void IniciarFase2(void) {
     
     // 4. Resetar o estado do jogo para a próxima onda
     enemyCount = 0;
-    enemies_defeated_count = 0; 
+    enemies_defeated_count = 0;
+    total_enemies_spawned = 0; 
     towerHealth = CASTLE_MAX_HEALTH;
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
@@ -512,12 +543,15 @@ void IniciarFase3(void) {
     // 4. Resetar o estado do jogo para a próxima onda
     enemyCount = 0;
     enemies_defeated_count = 0; 
+    total_enemies_spawned = 0;
     towerHealth = CASTLE_MAX_HEALTH;
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
     current_game_state = PLAYING; 
 
     placedHeroCount = 0;
+
+    background = backgroundFase3;
     
     // Resetar status dos heróis
     for (int i = 0; i < MAX_HEROIS; i++) {
@@ -541,12 +575,19 @@ void IniciarFase3(void) {
 // Inicialização
 void InitGame(void) {
 
+    currentWave = 1;
+    // Em src/game.c, dentro de InitGame(void)
+
+// ... (outras inicializações)
+    total_enemies_spawned = 0; // Garante que o contador começa do zero
+// ...
     // ======================
     // TEXTURAS
     // ======================
     background = LoadTexture("resources/background_novo.jpg");
     towerTexture = LoadTexture("resources/tower.png");
     backgroundFase2 = LoadTexture("resources/backgroundFase2.jpg");
+    backgroundFase3 = LoadTexture("resources/backgroundFase3.jpg");
 
     // ======================
     // RECURSOS E HERÓIS
@@ -571,6 +612,7 @@ void InitGame(void) {
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         enemies[i].active = 0;
+        enemies[i].pathIndex = 0; // 
         enemyLastAttackTime[i] = 0;
         enemyTargetHero[i] = -1;
     }
@@ -596,6 +638,14 @@ void InitGame(void) {
 void UpdateGame(void) {
     float dt = GetFrameTime();
 
+    if (currentWave == 1) {
+        // Garante que TODOS os inimigos ativos estão no caminho inferior
+        for (int i = 0; i < enemyCount; i++) {
+            if (enemies[i].active) {
+                enemies[i].pathIndex = 0;
+            }
+        }
+    }
     // =========================================================
     // 🔹 1. ABRIR / FECHAR PAUSE COM A TECLA P
     // =========================================================
@@ -743,11 +793,12 @@ void UpdateGame(void) {
             }
             // ⭐️⭐️⭐️ FIM DA SUBSTITUIÇÃO ⭐️⭐️⭐️
         }
-        // --- SPAWN DE INIMIGOS (COM PROBABILIDADE) ---
-        if (towerHealth > 0 && enemyCount < MAX_ENEMIES) {
+
+        // --- SPAWN DE INIMIGOS ---
+        // ⚠️ NOVO: Adiciona a verificação total_enemies_spawned < WAVE_SIZE[currentWave]
+        if (towerHealth > 0 && enemyCount < MAX_ENEMIES && total_enemies_spawned < WAVE_SIZE[currentWave]) { 
             spawnTimer += dt;
             if (spawnTimer >= SPAWN_INTERVAL) {
-                // ⭐️ VERIFICA SE AINDA PODE SPAWNAR
                 int activeEnemies = 0;
                 for (int i = 0; i < MAX_ENEMIES; i++) {
                     if (enemies[i].active) activeEnemies++;
@@ -755,7 +806,34 @@ void UpdateGame(void) {
                 
                 if (activeEnemies < MAX_ENEMIES) {
                     EnemyType newEnemyType = GetRandomEnemyType(); 
-                    enemies[enemyCount] = InitEnemy(currentPath[0].x, currentPath[0].y, newEnemyType);
+                    
+                    // ⭐️⭐️⭐️ LÓGICA DE CAMINHO (Já está Correta para as Fases)
+                    float startX, startY;
+                    int pathIndex = 0;
+                    
+                    if (currentWave == 1) {
+                        // FASE 1: 100% caminho inferior (pathIndex = 0)
+                        startX = pathInferior[0].x;
+                        startY = pathInferior[0].y;
+                        pathIndex = 0;
+                    } else {
+                        // FASE 2+: 50% inferior, 50% superior (pathIndex 0 ou 1)
+                        if (GetRandomValue(0, 1) == 0) {
+                            startX = pathInferior[0].x;
+                            startY = pathInferior[0].y;
+                            pathIndex = 0;
+                        } else {
+                            startX = pathSuperior[0].x;
+                            startY = pathSuperior[0].y;
+                            pathIndex = 1;
+                        }
+                    }
+                    
+                    // 💰 NOVO: Incrementa a contagem de inimigos spawnados
+                    total_enemies_spawned++; 
+                    
+                    enemies[enemyCount] = InitEnemy(startX, startY, newEnemyType);
+                    enemies[enemyCount].pathIndex = pathIndex;
                     enemyLastAttackTime[enemyCount] = 0;
                     enemyTargetHero[enemyCount] = -1;
                     enemyCount++;
@@ -763,7 +841,6 @@ void UpdateGame(void) {
                 spawnTimer = 0;
             }
         }
-
     // --- LÓGICA DE HABILIDADES ESPECIAIS (NECROMANTE E DRAGÃO) ---
     for (int i = 0; i < enemyCount; i++) {
         if (!enemies[i].active) continue;
@@ -792,6 +869,35 @@ void UpdateGame(void) {
             }
         }
     }
+
+        // =========================================================
+        // 🔹 7. LÓGICA DE TRANSIÇÃO DE ONDA / VITÓRIA (INSERIR AQUI) ⬅️
+        // =========================================================
+
+        if (currentWave < MAX_WAVES) {
+            // Verifica se todos os inimigos previstos para a onda foram derrotados.
+            if (enemies_defeated_count >= WAVE_SIZE[currentWave]) {
+
+                // Verifica se não há inimigos ativos restantes no mapa
+                int activeEnemies = 0;
+                for (int i = 0; i < MAX_ENEMIES; i++) {
+                    if (enemies[i].active) {
+                        activeEnemies++;
+                        break; 
+                    }
+                }
+                
+                // Se todos foram derrotados E não há mais ninguém no mapa
+                if (activeEnemies == 0) {
+                    current_game_state = WAVE_WON; 
+                }
+            }
+        } else {
+            // Lógica de Vitória Final (se for a última onda)
+            if (enemies_defeated_count >= WAVE_SIZE[currentWave]) {
+                // ... (Verificação final e transição para GAME_OVER (Vitória))
+            }
+        }
 
 
     // --- MOVIMENTO & ATAQUE DOS INIMIGOS ---
@@ -979,15 +1085,21 @@ void DrawGame(void) {
         return;   // Para aqui!
     }
 
-    // 🎯 DEBUG: Desenha o caminho dos inimigos
-    for (int i = 0; i < MAX_WAYPOINTS - 1; i++) {
-        DrawLineEx(currentPath[i], currentPath[i + 1], 3.0f, (Color){255, 255, 0, 128});
+    // SUBSTITUA a parte dos caminhos por:
+    /* Desenha caminho inferior
+    for (int i = 0; i < 83; i++) {
+        DrawLineEx(pathInferior[i], pathInferior[i + 1], 3.0f, YELLOW);
     }
-    for (int i = 0; i < MAX_WAYPOINTS; i++) {
-        DrawCircle(currentPath[i].x, currentPath[i].y, 5.0f, BLUE);
-        DrawText(TextFormat("%d", i), currentPath[i].x + 10, currentPath[i].y - 10, 10, WHITE);
-    }
+    */
 
+    /*Se fase 2+, desenha caminho superior também
+    if (currentWave > 1) {
+        for (int i = 0; i < 95; i++) {
+            DrawLineEx(pathSuperior[i], pathSuperior[i + 1], 3.0f, GREEN);
+        }
+    }
+    */
+    
     // 🔹 Torre
     DrawTexture(towerTexture, 650, 100, WHITE);
     
@@ -1065,28 +1177,54 @@ void DrawGame(void) {
     }
 
     // =======================================================
-    // ➤ TELA DE VITÓRIA
+    // ➤ TELA DE VITÓRIA (CORRIGIDA PARA FASES)
     // =======================================================
     else if (current_game_state == WAVE_WON) {
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(DARKGREEN, 0.8f));
         
-        const char *message = "VOCÊ GANHOU! IR PARA A FASE 2";
+        const char *message;
+        const char *button_text;
+        
+        // ⭐️ Lógica de Mensagem e Botão
+        if (currentWave == 1) {
+            message = "ONDA 1 COMPLETA! IR PARA A FASE 2";
+            button_text = "INICIAR FASE 2";
+        } else if (currentWave == 2) {
+            message = "ONDA 2 COMPLETA! IR PARA A FASE 3"; // ⬅️ MENSAGEM PARA FASE 3
+            button_text = "INICIAR FASE 3";
+        } else {
+            message = "PARABÉNS! VOCÊ VENCEU O JOGO!";
+            button_text = "VOLTAR AO MENU";
+        }
+        
+        // Desenha Mensagem
         int message_len = MeasureText(message, 40);
         DrawText(message, (GetScreenWidth() / 2) - (message_len / 2),
                  GetScreenHeight() / 2 - 50, 40, GOLD);
         
+        // Botão
         Rectangle button_rect = { (GetScreenWidth() / 2) - 100,
-                                  GetScreenHeight() / 2 + 50,
-                                  200, 50 };
-        DrawRectangleRec(button_rect, YELLOW);
-        DrawText("CONTINUAR", button_rect.x + 50, button_rect.y + 15, 20, BLACK);
-
+                                 GetScreenHeight() / 2 + 50,
+                                 200, 50 };
+        Color buttonColor = CheckCollisionPointRec(GetMousePosition(), button_rect) ? GOLD : YELLOW;
+        
+        DrawRectangleRec(button_rect, buttonColor);
+        DrawText(button_text, button_rect.x + (button_text == "VOLTAR AO MENU" ? 5 : 20), button_rect.y + 15, 20, BLACK); // Ajuste de texto
+        
+        // ⭐️ Lógica de Clique
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), button_rect)) {
-             IniciarFase2();
+            if (currentWave == 1) {
+                  IniciarFase2(); // Chama Fase 2
+            } else if (currentWave == 2) {
+                  IniciarFase3(); // ⬅️ CHAMADA PARA FASE 3
+            } else {
+                  current_game_state = MENU; // Se for a última fase
+            }
         }
     }
 
     EndDrawing();
+    
 }
 
 

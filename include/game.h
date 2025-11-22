@@ -14,8 +14,18 @@
 #define MAX_ENEMIES 20
 #define MAX_HEROIS 4
 
-// Declaração do caminho atual
-extern Vector2 *currentPath;
+// NO ARQUIVO .h (ex: include/game.h)
+extern Texture2D background;
+extern Texture2D backgroundFase2;
+extern Texture2D backgroundFase3;
+extern Texture2D towerTexture;
+
+// Adicione estas declarações externas para que enemy.c possa acessar
+extern Vector2 pathInferior[];
+extern Vector2 pathSuperior[];
+extern int currentWave;
+extern int NUM_WAYPOINTS_BAIXO;
+extern int NUM_WAYPOINTS_CIMA;
 
 // 1. Definição do ENUM GameState (DEVE VIR PRIMEIRO)
 typedef enum {

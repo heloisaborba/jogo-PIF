@@ -1,7 +1,7 @@
 #include "enemy.h"
-#include "game.h"    // ⭐️ Para acessar NUM_WAYPOINTS e currentPath
+#include "game.h"    // Para acessar currentWave, pathInferior, pathSuperior, etc.
 #include <stdlib.h>
-#include <math.h>    // ⭐️ Para sqrtf
+#include <math.h>
 
 // Tabela de estatísticas dos inimigos (deve corresponder ao enum EnemyType)
 const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
@@ -47,6 +47,35 @@ const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
     }
 };
 
+// Em enemy.c:
+Vector2* GetEnemyCurrentPath(Enemy *e, int *pathLength) {
+    extern Vector2 pathInferior[];
+    extern Vector2 pathSuperior[];
+    extern int currentWave;
+    
+    // ⭐️⭐️⭐️ IMPORTANTE: Fase 1 SEMPRE retorna caminho inferior
+    if (currentWave == 1) {
+        *pathLength = 84;
+        return pathInferior; // ⭐️ SEMPRE inferior na fase 1
+    } else {
+        // Fase 2+: respeita o pathIndex
+        if (e->pathIndex == 0) {
+            *pathLength = 84;
+            return pathInferior;
+        } else {
+            *pathLength = 96;
+            return pathSuperior;
+        }
+    }
+}
+
+// ⭐️ NOVA FUNÇÃO: Obter waypoint final (torre) baseado no caminho
+Vector2 GetEnemyFinalWaypoint(Enemy *e) {
+    int pathLength;
+    Vector2* path = GetEnemyCurrentPath(e, &pathLength);
+    return path[pathLength - 1];
+}
+
 Enemy InitEnemy(float x, float y, EnemyType type) {
     Enemy enemy;
     
@@ -56,6 +85,10 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
     enemy.x = x;
     enemy.y = y;
     enemy.currentWaypoint = 0;
+    
+    // ⭐️ INICIALIZAÇÃO DO CAMINHO
+    // Por padrão começa no caminho inferior
+    enemy.pathIndex = 0;
     
     // Configura estatísticas baseadas na tabela
     enemy.damage = ENEMY_STATS[type].damage;
@@ -76,9 +109,13 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
 
 void UpdateEnemy(Enemy *e) {
     if (!e->active) return;
+
+    // ⭐️ ATUALIZADO: Obter caminho específico deste inimigo
+    int pathLength;
+    Vector2* currentPath = GetEnemyCurrentPath(e, &pathLength);
     
     // Movimento pelos waypoints
-    if (e->currentWaypoint < NUM_WAYPOINTS - 1) {
+    if (e->currentWaypoint < pathLength - 1) {
         Vector2 target = currentPath[e->currentWaypoint + 1];
         Vector2 direction = {
             target.x - e->x,
@@ -127,6 +164,13 @@ void DrawEnemy(Enemy e) {
         default: color = WHITE;
     }
     
+    // ⭐️ ADICIONADO: Indicador visual do caminho
+    if (currentWave > 1) {
+        // Desenha pequeno indicador do caminho
+        Color pathColor = (e.pathIndex == 0) ? BLUE : SKYBLUE;
+        DrawCircle(e.x, e.y - 20, 3, pathColor);
+    }
+    
     // Desenha inimigo como círculo (substitua por sprites depois)
     DrawCircle(e.x, e.y, 15, color);
     
@@ -142,8 +186,25 @@ void DrawEnemy(Enemy e) {
 }
 
 int EnemyReachedTower(Enemy e) {
-    // Verifica se chegou no último waypoint (próximo à torre)
-    // Ou se está muito próximo das coordenadas finais da torre
-    return (e.currentWaypoint >= NUM_WAYPOINTS - 1) || 
-           (Vector2Distance((Vector2){e.x, e.y}, (Vector2){650, 100}) < 50.0f);
+    // ⭐️ ATUALIZADO: Verifica se chegou no último waypoint do seu caminho específico
+    int pathLength;
+    Vector2* currentPath = GetEnemyCurrentPath((Enemy*)&e, &pathLength);
+    
+    Vector2 finalWaypoint = currentPath[pathLength - 1];
+    float distanceToFinal = Vector2Distance((Vector2){e.x, e.y}, finalWaypoint);
+    
+    return (e.currentWaypoint >= pathLength - 1) || 
+           (distanceToFinal < 20.0f);
+}
+
+// ⭐️ NOVA FUNÇÃO: Para debug - mostra informações do caminho do inimigo
+void DrawEnemyDebugInfo(Enemy e, int index) {
+    if (!e.active) return;
+    
+    const char* pathName = (e.pathIndex == 0) ? "INFERIOR" : "SUPERIOR";
+    int pathLength;
+    
+    DrawText(TextFormat("Inimigo %d: %s (WP: %d/%d)", 
+                       index, pathName, e.currentWaypoint, pathLength - 1),
+            10, 150 + (index * 15), 10, WHITE);
 }
