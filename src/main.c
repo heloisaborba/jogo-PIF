@@ -1,10 +1,11 @@
+// main.c
 #include "raylib.h"
 #include "hero.h"
 #include "enemy.h"
 #include "tower.h"
 #include "menu.h"
-#include "game.h"  // ADICIONE ESTA LINHA
-#include <stdio.h>  // Para printf
+#include "game.h" // Contém GameState e current_game_state
+#include <stdio.h> // Para printf
 
 // Tamanho da tela
 const int screenWidth = 800;
@@ -18,7 +19,7 @@ int main(void) {
 
     printf("DEBUG: Janela inicializada, entrando no loop principal\n");
 
-    while (true) {
+    while (!WindowShouldClose()) {
         printf("DEBUG: Chamando ShowMenu()\n");
         MenuOption option = ShowMenu();
         printf("DEBUG: ShowMenu() retornou: %d\n", option);
@@ -31,11 +32,11 @@ int main(void) {
         else if (option == MENU_START) {
             printf("DEBUG: Opção START selecionada, iniciando jogo...\n");
             
-            // TESTE SIMPLES: Mostrar tela de carregamento primeiro
+            // --- Bloco de Carregamento (Mantido) ---
             printf("DEBUG: Mostrando tela de teste...\n");
             int frames = 0;
             
-            while (!WindowShouldClose() && frames < 30) { // Executa por ~0.5 segundo
+            while (!WindowShouldClose() && frames < 30) { 
                 frames++;
                 
                 BeginDrawing();
@@ -49,23 +50,28 @@ int main(void) {
                     break;
                 }
             }
+            // ----------------------------------------
             
-            // Se o teste passou, iniciar o jogo real
+            // Se o teste passou, iniciar o loop de jogo real
             if (frames >= 30) {
                 printf("DEBUG: Iniciando jogo completo...\n");
-                InitGame();
+                InitGame(); // Inicializa o jogo e define current_game_state = PLAYING
 
-                while (!WindowShouldClose()) {
-                    if (IsKeyPressed(KEY_ESCAPE)) {
-                        printf("DEBUG: ESC pressionado, voltando ao menu\n");
-                        break;
-                    }
+                // O NOVO LOOP DE JOGO:
+                // Ele continua enquanto o estado não for forçado para MENU
+                while (!WindowShouldClose() && 
+                       (current_game_state == PLAYING || 
+                        current_game_state == PAUSED || 
+                        current_game_state == WAVE_WON || 
+                        current_game_state == GAME_OVER)) 
+                {
+                    // Lógica do jogo (Atualiza e Desenha)
                     UpdateGame();
                     DrawGame();
                 }
 
-                CloseGame();
-                printf("DEBUG: Jogo fechado, voltando ao menu\n");
+                CloseGame(); // Limpa recursos do jogo
+                printf("DEBUG: Jogo encerrado, voltando ao ShowMenu() \n");
             } else {
                 printf("DEBUG: Carregamento interrompido, voltando ao menu\n");
             }
@@ -110,6 +116,9 @@ int main(void) {
         else {
             printf("DEBUG: Opção desconhecida: %d\n", option);
         }
+        
+        // Se o loop de jogo terminou (porque current_game_state != PLAYING/PAUSED/etc), 
+        // o programa continua e repete o loop principal chamando ShowMenu()
     }
 
     printf("DEBUG: Fechando janela...\n");

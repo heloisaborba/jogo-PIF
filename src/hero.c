@@ -1,10 +1,13 @@
 #include <raylib.h>
 #include "hero.h"
-#include "enemy.h"   // se o herói ataca inimigos
-#include "tower.h"   // se o herói interage com torres
+#include "enemy.h"
+#include "tower.h"
 
-Hero InitHero(int x, int y) {
-    Hero h = { x, y, 100 };
+// Variável global do herói principal
+Hero hero = { 400, 300, 100 };
+
+Hero InitHero(int x, int y, int initialHealth) {
+    Hero h = { x, y, initialHealth };  // Mude 100 para initialHealth
     return h;
 }
 
