@@ -77,24 +77,6 @@ int main(void) {
             }
         }
 
-        else if (option == MENU_HOW_TO_PLAY) {
-            printf("DEBUG: Opção HOW_TO_PLAY selecionada\n");
-            while (!WindowShouldClose()) {
-                BeginDrawing();
-                ClearBackground(DARKBLUE);
-                DrawText("HOW TO PLAY:", 250, 200, 30, RAYWHITE);
-                DrawText("- Use arrows to move", 250, 250, 20, RAYWHITE);
-                DrawText("- Defend your tower!", 250, 280, 20, RAYWHITE);
-                DrawText("Press ESC to return", 250, 330, 20, YELLOW);
-                EndDrawing();
-
-                if (IsKeyPressed(KEY_ESCAPE)) {
-                    printf("DEBUG: ESC pressionado em HOW_TO_PLAY\n");
-                    break;
-                }
-            }
-        }
-
         else if (option == MENU_RANKING) {
             printf("DEBUG: Opção RANKING selecionada\n");
             while (!WindowShouldClose()) {

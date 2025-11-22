@@ -1209,7 +1209,7 @@ void DrawGame(void) {
         Color buttonColor = CheckCollisionPointRec(GetMousePosition(), button_rect) ? GOLD : YELLOW;
         
         DrawRectangleRec(button_rect, buttonColor);
-        DrawText(button_text, button_rect.x + (button_text == "VOLTAR AO MENU" ? 5 : 20), button_rect.y + 15, 20, BLACK); // Ajuste de texto
+        DrawText(button_text, button_rect.x + (strcmp(button_text, "VOLTAR AO MENU") == 0 ? 5 : 20), button_rect.y + 15, 20, BLACK);
         
         // ⭐️ Lógica de Clique
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), button_rect)) {

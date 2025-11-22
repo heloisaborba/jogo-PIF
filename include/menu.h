@@ -5,8 +5,9 @@
 
 typedef enum {
     MENU_START,
+    MENU_HEROES,
     MENU_HOW_TO_PLAY,
-    MENU_RANKING,
+    MENU_RANKING,  // Mantido
     MENU_EXIT,
     MENU_TOTAL
 } MenuOption;
@@ -17,13 +18,9 @@ typedef struct {
     const char *descricao;
 } PersonagemInfo;
 
-typedef enum {
-    HOW_MENU,
-    HOW_CONTROLES,
-    HOW_PERSONAGENS
-} HowState;
-
 MenuOption ShowMenu();
-void ShowHowMenu(PersonagemInfo personagens[]);
+void ShowHeroesMenu(PersonagemInfo personagens[]);
+void ShowHowToPlayMenu();
+void ShowRankingMenu();  // Adicionado
 
 #endif
