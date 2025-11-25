@@ -62,6 +62,12 @@ HeroUpgrade heroUpgrades[MAX_HEROIS];
 bool menuUpgradesAberto = false;
 int selectedUpgradeHero = 0; // Índice do herói selecionado para upgrade
 
+// 💰 NOVO: Sistema de Venda de Heróis
+bool sellMode = false; // Modo de seleção para vender heróis
+int selectedHeroToSell = -1; // Herói selecionado para venda
+float sellMessageTimer = 0.0f; // Timer para mostrar mensagem de venda
+char sellMessage[100] = ""; // Mensagem de feedback da venda
+
 // =======================
 // VARIÁVEIS GLOBAIS - CAMINHOS
 // =======================
@@ -307,7 +313,7 @@ Vector2 pathSuperior[96] = {
     { 581, 195 },{ 589, 190 },{ 603, 184 },{ 615, 179 },
     { 625, 172 },{ 635, 162 },{ 643, 155 },
     { 652, 149 }
-};;
+};
 
 
 // Ponteiro para o caminho atual
@@ -974,10 +980,21 @@ void UpdateGame(void) {
     if (IsKeyPressed(KEY_U) && currentWave >= 2) {
         menuUpgradesAberto = !menuUpgradesAberto;
         menuAberto = false; // Fecha menu de compra se abrir upgrades
+        sellMode = false; // Desativa modo de venda
         if (menuUpgradesAberto) {
             selectedUpgradeHero = -1; // Força o jogador a escolher um herói
             TraceLog(LOG_INFO, "Menu de upgrades aberto!");
         }
+        return;
+    }
+
+    // 💰 NOVO: ATIVAR / DESATIVAR MODO DE VENDA DE HERÓIS
+    if (IsKeyPressed(KEY_V)) {
+        sellMode = !sellMode;
+        menuAberto = false; // Fecha menu de compra
+        menuUpgradesAberto = false; // Fecha menu de upgrades
+        selectedHeroToSell = -1;
+        TraceLog(LOG_INFO, "Modo de venda: %s", sellMode ? "ATIVADO" : "DESATIVADO");
         return;
     }
 
@@ -1003,6 +1020,65 @@ void UpdateGame(void) {
         VerificarCliqueUpgrades();
         return;
     }
+
+    // 💰 NOVO: MODO DE VENDA DE HERÓIS ATIVADO
+        if (sellMode) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mousePos = GetMousePosition();
+                bool heroVendido = false;
+                
+                // Verificar clique em algum herói
+                for (int i = 0; i < placedHeroCount; i++) {
+                    if (placedHeroes[i].health <= 0) continue;
+                    
+                    float dx = mousePos.x - placedHeroes[i].x;
+                    float dy = mousePos.y - placedHeroes[i].y;
+                    float dist = sqrtf(dx*dx + dy*dy);
+                    
+                    // Se clicou em um herói com vida cheia, vender
+                    if (dist <= 50 && placedHeroes[i].health == 100) {
+                        int sell_price = (herois[placedHeroes[i].tipo].custo * 70) / 100;
+                        adicionar_moedas(&gameRecursos, sell_price);
+                        
+                        sprintf(sellMessage, "Vendido! +%d moedas", sell_price);
+                        sellMessageTimer = 2.0f;
+                        
+                        TraceLog(LOG_INFO, "Herói %s vendido por %d moedas!", herois[placedHeroes[i].tipo].nome, sell_price);
+                        
+                        // Remover herói vendido do array deslocando elems posteriores
+                        for (int j = i; j < placedHeroCount - 1; j++) {
+                            placedHeroes[j] = placedHeroes[j + 1];
+                        }
+                        placedHeroCount--;
+                        
+                        heroVendido = true;
+                        break;
+                    }
+                    // Se clicou em um herói danificado, mostrar mensagem (sem fazer nada)
+                    else if (dist <= 50 && placedHeroes[i].health < 100) {
+                        sprintf(sellMessage, "Herói danificado! Recupere a vida antes de vender");
+                        sellMessageTimer = 2.0f;
+                        
+                        TraceLog(LOG_WARNING, "Este herói está danificado! Recupere a vida antes de vender.");
+                        heroVendido = true;
+                        break;
+                    }
+                }
+                
+                // Se vendeu um herói, desativar modo de venda
+                if (heroVendido) {
+                    selectedHeroToSell = -1;
+                    sellMode = false;
+                }
+            }
+            
+            // Cancelar modo de venda com ESC
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                sellMode = false;
+                selectedHeroToSell = -1;
+            }
+            return;
+        }
 
 
     // =========================================================
@@ -1339,27 +1415,37 @@ void UpdateGame(void) {
 
 // 🔹 Função para desenhar UI normal
 void DrawGameUI(void) {
-  // Fundo semi-transparente para as informações
-  DrawRectangle(10, 10, 200, 115, (Color){0, 0, 0, 128});
+  // Fundo semi-transparente com bordas
+  DrawRectangle(10, 10, 220, 150, Fade(BLACK, 0.7f));
+  DrawRectangleLines(10, 10, 220, 150, Fade(GOLD, 0.6f));
   
   // Torre HP (no topo esquerdo)
-  DrawText(TextFormat("Torre HP: %d", towerHealth), 20, 20, 20, RED);
+  DrawText("TORRE", 20, 17, 12, GOLD);
+  DrawText(TextFormat("HP: %d", towerHealth), 20, 32, 18, RED);
  
   // Indicador de Queima na Torre
   if (is_tower_burning) {
-    DrawText("QUEIMANDO!", 20, 42, 12, ORANGE);
+    DrawText("QUEIMANDO!", 20, 52, 11, ORANGE);
   }
   
-  // 💰 Moedas (logo embaixo do HP da Torre - sem espaço)
-  DrawText(TextFormat("Moedas: %d", get_moedas(&gameRecursos)), 20, 50, 20, GOLD);
+  // 💰 Moedas (logo embaixo do HP da Torre)
+  DrawText("MOEDAS:", 20, 67, 12, GOLD);
+  DrawText(TextFormat("%d", get_moedas(&gameRecursos)), 20, 82, 18, YELLOW);
   
-  // Instruções para abrir menu (coluna)
-  DrawText("H - Loja", 20, 78, 14, LIGHTGRAY);
-  DrawText("U - Upgrades", 20, 95, 14, LIGHTGRAY);
+  // Separador
+  DrawLine(10, 105, 230, 105, Fade(GOLD, 0.4f));
+  
+  // Instruções para abrir menu (estilizadas)
+  DrawText("[H] Loja", 20, 112, 13, Fade(GOLD, 0.8f));
+  DrawText("[U] Upgrades", 20, 128, 13, Fade(GOLD, 0.8f));
+  DrawText("[V] Vender", 20, 144, 13, Fade(GOLD, 0.8f));
 
   // Indicação de modo de colocação
   if (placementMode) {
-    DrawText("Clique no mapa para colocar o herói", GetScreenWidth()/2 - MeasureText("Clique no mapa para colocar o herói", 20)/2, 20, 20, YELLOW);
+    int textWidth = MeasureText("Clique no mapa para colocar o heroi", 18);
+    DrawRectangle(GetScreenWidth()/2 - textWidth/2 - 10, 15, textWidth + 20, 35, Fade(YELLOW, 0.2f));
+    DrawRectangleLines(GetScreenWidth()/2 - textWidth/2 - 10, 15, textWidth + 20, 35, YELLOW);
+    DrawText("Clique no mapa para colocar o heroi", GetScreenWidth()/2 - textWidth/2, 22, 18, YELLOW);
   }
 }
 
@@ -1468,6 +1554,73 @@ void DrawGame(void) {
     // ✨ NOVO: Menu de Upgrades (apenas fase 2+)
     if (menuUpgradesAberto && currentWave >= 2) {
         DrawMenuUpgrades();
+    }
+    
+    // 💰 NOVO: Modo de venda - Destacar heróis disponíveis para venda
+    if (sellMode) {
+        // Efeito de pulsação (animação)
+        float pulse = sinf(GetTime() * 4.0f) * 0.3f + 0.7f;
+        
+        for (int i = 0; i < placedHeroCount; i++) {
+            if (placedHeroes[i].health <= 0) continue;
+            
+            if (placedHeroes[i].health == 100) {
+                // Heróis disponíveis para venda
+                float circleRadius = 55 + (5 * pulse); // Pulsação do círculo
+                
+                // Círculos concêntricos com efeito de glow
+                DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, circleRadius + 5, Fade(GOLD, 0.3f));
+                DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, circleRadius + 2, Fade(GOLD, 0.6f));
+                DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, circleRadius, GOLD);
+                
+                // Preenchimento semi-transparente
+                DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 45, Fade(GOLD, 0.15f));
+                
+                // Ícone de moeda no herói
+                DrawText("$", placedHeroes[i].x - 5, placedHeroes[i].y - 65, 20, GOLD);
+                
+                // Preço de venda acima do herói
+                int sell_price = (herois[placedHeroes[i].tipo].custo * 70) / 100;
+                char priceText[20];
+                sprintf(priceText, "+%d", sell_price);
+                int textWidth = MeasureText(priceText, 16);
+                DrawText(priceText, placedHeroes[i].x - textWidth/2, placedHeroes[i].y - 85, 16, GOLD);
+            } else {
+                // Heróis NÃO disponíveis (vida baixa)
+                DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, 55, Fade(DARKGRAY, 0.4f));
+                DrawCircleLines(placedHeroes[i].x, placedHeroes[i].y, 58, Fade(DARKGRAY, 0.3f));
+                
+                // Símbolo de proibição
+                DrawCircle(placedHeroes[i].x, placedHeroes[i].y, 45, Fade(DARKGRAY, 0.1f));
+                DrawText("X", placedHeroes[i].x - 5, placedHeroes[i].y - 8, 20, Fade(RED, 0.5f));
+            }
+        }
+        
+        // Painel de instruções melhorado
+        int panelWidth = 480;
+        int panelHeight = 100;
+        int panelX = GetScreenWidth()/2 - panelWidth/2;
+        int panelY = 40;
+        
+        // Fundo com gradiente
+        DrawRectangle(panelX, panelY, panelWidth, panelHeight, Fade(BLACK, 0.8f));
+        DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, GOLD);
+        DrawRectangleLines(panelX+2, panelY+2, panelWidth-4, panelHeight-4, Fade(GOLD, 0.5f));
+        
+        // Título
+        const char *titleSell = "MODO VENDA ATIVADO";
+        int titleWidth = MeasureText(titleSell, 22);
+        DrawText(titleSell, panelX + panelWidth/2 - titleWidth/2, panelY + 10, 22, GOLD);
+        
+        // Instrução principal
+        const char *instrSell = "Clique em um heroi com VIDA CHEIA para vender";
+        int instrWidth = MeasureText(instrSell, 14);
+        DrawText(instrSell, panelX + panelWidth/2 - instrWidth/2, panelY + 38, 14, WHITE);
+        
+        // Instrução de cancelamento
+        const char *cancelSell = "ESC = Cancelar | Verde = Vendável | Cinza = Danificado";
+        int cancelWidth = MeasureText(cancelSell, 12);
+        DrawText(cancelSell, panelX + panelWidth/2 - cancelWidth/2, panelY + 58, 12, LIGHTGRAY);
     }
     
     // =======================================================
