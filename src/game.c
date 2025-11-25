@@ -68,6 +68,12 @@ int selectedHeroToSell = -1; // Herói selecionado para venda
 float sellMessageTimer = 0.0f; // Timer para mostrar mensagem de venda
 char sellMessage[100] = ""; // Mensagem de feedback da venda
 
+// ✨ NOVO: recompensa quando não há heróis
+float noHeroTimer = 0.0f; // acumula tempo para dar 5 moedas por segundo quando o último herói morreu
+
+// ✨ NOVO: flag para detectar morte (diferente de venda)
+bool lastHeroDied = false;
+
 // =======================
 // VARIÁVEIS GLOBAIS - CAMINHOS
 // =======================
@@ -211,6 +217,8 @@ void ReiniciarFase(void) {
     towerHealth = CASTLE_MAX_HEALTH;
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
+    lastHeroDied = false;
+    noHeroTimer = 0.0f;
 
     // Reset recursos
     gameRecursos.moedas = 100;
@@ -245,6 +253,8 @@ void VoltarMenuPrincipal(void) {
     towerHealth = CASTLE_MAX_HEALTH;
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
+    lastHeroDied = false;
+    noHeroTimer = 0.0f;
 
     // Reseta moedas
     gameRecursos.moedas = 100;
@@ -366,6 +376,11 @@ int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
   
   int custoupgrade = 0;
   int nivelAtual = 0;
+
+  // Salva valores anteriores para aplicar diffs aos heróis já colocados
+  int prev_vida_total = heroUpgrades[tipoHeroi].vida_total;
+  int prev_dano_total = heroUpgrades[tipoHeroi].dano_total;
+  float prev_vel_mult = heroUpgrades[tipoHeroi].velocidade_mult;
   
   // Definir custo e nível atual baseado no tipo de upgrade
   if (tipoUpgrade == 0) { // Vida
@@ -385,7 +400,7 @@ int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
   // Verificar moedas suficientes
   if (r->moedas < custoupgrade) return 0;
   
-  // Aplicar upgrade
+  // Aplicar upgrade (debita primeiro)
   r->moedas -= custoupgrade;
   
   if (tipoUpgrade == 0) { // Vida
@@ -401,7 +416,36 @@ int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
     heroUpgrades[tipoHeroi].velocidade_mult = 1.0f + (heroUpgrades[tipoHeroi].nivel_velocidade * 0.15f);
     TraceLog(LOG_INFO, "Velocidade do %s aumentada para %.2fx! Custo: %d moedas.", herois[tipoHeroi].nome, heroUpgrades[tipoHeroi].velocidade_mult, custoupgrade);
   }
-  
+
+  // Aplica alterações para heróis já colocados do mesmo tipo
+  // Calcula diferenças para ajustar HP e dano de forma coerente
+  int new_vida_total = heroUpgrades[tipoHeroi].vida_total;
+  int new_dano_total = heroUpgrades[tipoHeroi].dano_total;
+  float new_vel_mult = heroUpgrades[tipoHeroi].velocidade_mult;
+
+  int diffVida = new_vida_total - prev_vida_total;
+  int diffDano = new_dano_total - prev_dano_total;
+  float diffVel = new_vel_mult - prev_vel_mult;
+
+  for (int i = 0; i < placedHeroCount; i++) {
+      if (placedHeroes[i].tipo != tipoHeroi) continue;
+
+      // Atualiza dano (torna o herói imediatamente mais forte)
+      placedHeroes[i].dano = new_dano_total;
+
+      // Aumenta a vida máxima/atual de forma justa: se estava vivo, aumenta proporcionalmente
+      // Se estava abaixo do 'old max', soma o diff; se estava no max ou acima, ajusta para novo max.
+      if (placedHeroes[i].health > 0) {
+          placedHeroes[i].health += diffVida;
+          if (placedHeroes[i].health > new_vida_total) placedHeroes[i].health = new_vida_total;
+      }
+      // Nota: velocidade afeta apenas o intervalo de ataque no loop de ataque (ver UpdateGame).
+  }
+
+  // Atualiza também a "base" do herói para futuras colocações
+  // Assim, novos placedHeroes receberão dano atualizado
+  herois[tipoHeroi].dano = new_dano_total;
+
   return 1;
 }
 
@@ -726,10 +770,10 @@ void DrawMenuHerois(void) {
         
         // Verificar clique no botão de upgrades
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), btnUpgrades)) {
-            menuUpgradesAberto = !menuUpgradesAberto;
-            if (menuUpgradesAberto) {
-                selectedUpgradeHero = -1; // Força o jogador a escolher um herói
-            }
+            // Abre o menu de upgrades e garante que o menu de compra seja fechado.
+            menuUpgradesAberto = true;
+            menuAberto = false;
+            selectedUpgradeHero = -1; // Força o jogador a escolher um herói
             return;
         }
     }
@@ -760,7 +804,7 @@ void VerificarCliqueMenu(void) {
         int btnX = cardX + (cardWidth - btnWidth) / 2;
         int btnY = cardY + cardHeight - btnHeight - 10;
 
-        // Expandir hitbox em ~15 pixels de cada lado para maior tolerância de clique
+        // Expandir hitbox em ~15 pixels de cada lado para maior tolerância
         int hitboxPadding = 15;
         Rectangle btnRect = { 
             btnX - hitboxPadding, 
@@ -1023,7 +1067,7 @@ void UpdateGame(void) {
 
     // 💰 NOVO: MODO DE VENDA DE HERÓIS ATIVADO
         if (sellMode) {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 Vector2 mousePos = GetMousePosition();
                 bool heroVendido = false;
                 
@@ -1052,6 +1096,8 @@ void UpdateGame(void) {
                         placedHeroCount--;
                         
                         heroVendido = true;
+                        // Impede recompensa por "ausência" se o jogador vendeu o herói
+                        lastHeroDied = false;
                         break;
                     }
                     // Se clicou em um herói danificado, mostrar mensagem (sem fazer nada)
@@ -1105,16 +1151,19 @@ void UpdateGame(void) {
             placedHeroes[placedHeroCount].x = x;
             placedHeroes[placedHeroCount].y = y;
             placedHeroes[placedHeroCount].tipo = selectedHeroType;
-            placedHeroes[placedHeroCount].dano = herois[selectedHeroType].dano;
+            // Usa valores já modificados pelos upgrades (vida e dano)
+            placedHeroes[placedHeroCount].dano = heroUpgrades[selectedHeroType].dano_total;
             placedHeroes[placedHeroCount].alcance = herois[selectedHeroType].alcance;
-            placedHeroes[placedHeroCount].health = 100; // HP base do herói
-            placedHeroes[placedHeroCount].lastAttackTime = 0;
-            placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
-             // Inicializa status de queima do herói
-             placedHeroes[placedHeroCount].is_burning = false;
-             placedHeroes[placedHeroCount].burn_timer = 0.0f;
+            placedHeroes[placedHeroCount].health = heroUpgrades[selectedHeroType].vida_total; // HP base do herói (considera upgrades)
+             placedHeroes[placedHeroCount].lastAttackTime = 0;
+             placedHeroes[placedHeroCount].texture = herois[selectedHeroType].texture;
+              // Inicializa status de queima do herói
+              placedHeroes[placedHeroCount].is_burning = false;
+              placedHeroes[placedHeroCount].burn_timer = 0.0f;
 
-
+            // Colocou um herói vivo — cancela cenário de "último herói morreu"
+            lastHeroDied = false;
+            
             placedHeroCount++;
 
             placementMode = false;
@@ -1130,36 +1179,64 @@ void UpdateGame(void) {
     // =========================================================
     if (current_game_state != PLAYING) return;
 
+    // --- RECOMPENSA: +5 MOEDAS/SEGUNDO SE NÃO HOUVER HERÓIS COLOCADOS ---
+    if (lastHeroDied) {
+        // conta quantos heróis VIVOS restam
+        int alive = 0;
+        for (int h = 0; h < placedHeroCount; h++) {
+            if (placedHeroes[h].health > 0) { alive++; break; }
+        }
+        
+        if (alive == 0) {
+            noHeroTimer += dt;
+            if (noHeroTimer >= 1.0f) {
+                int seconds = (int)noHeroTimer;
+                adicionar_moedas(&gameRecursos, 5 * seconds);
+                noHeroTimer -= (float)seconds;
+            }
+        } else {
+            noHeroTimer = 0.0f;
+        }
+    } else {
+        noHeroTimer = 0.0f;
+    }
+    // --- FIM RECOMPENSA ---
+
     // --- ATAQUE DOS HERÓIS (COM RESISTÊNCIA) ---
     for (int i = 0; i < placedHeroCount; i++) {
-        if (placedHeroes[i].health <= 0) continue;
-
-        float minDist = (float)placedHeroes[i].alcance;
-        int targetEnemy = -1;
-
-        for (int j = 0; j < enemyCount; j++) {
-            if (!enemies[j].active) continue;
-
-            float dx = placedHeroes[i].x - enemies[j].x;
-            float dy = placedHeroes[i].y - enemies[j].y;
-            float dist = sqrtf(dx*dx + dy*dy);
-
-            if (dist < minDist) {
-                minDist = dist;
-                targetEnemy = j;
-            }
-        }
-
-        if (targetEnemy != -1) {
+         if (placedHeroes[i].health <= 0) continue;
+ 
+         float minDist = (float)placedHeroes[i].alcance;
+         int targetEnemy = -1;
+ 
+         for (int j = 0; j < enemyCount; j++) {
+             if (!enemies[j].active) continue;
+ 
+             float dx = placedHeroes[i].x - enemies[j].x;
+             float dy = placedHeroes[i].y - enemies[j].y;
+             float dist = sqrtf(dx*dx + dy*dy);
+ 
+             if (dist < minDist) {
+                 minDist = dist;
+                 targetEnemy = j;
+             }
+         }
+ 
+         if (targetEnemy != -1) {
                 placedHeroes[i].lastAttackTime += dt;
-                if (placedHeroes[i].lastAttackTime >= 1.0f) {
-                    
-                    // ✅ CORRETO: Calcula a máscara de bit do herói
-                    int hero_bit = (1 << placedHeroes[i].tipo);
-                    
-                    // ✅ CORRETO: Verifica se o inimigo NÃO tem resistência contra este herói
-                    if ((enemies[targetEnemy].resistance & hero_bit) == 0) {
-                        // ⭐️ O herói PODE ATINGIR o inimigo (NÃO tem resistência)
+                // Intervalo base 1s, modificado pelo multiplicador de velocidade dos upgrades
+                float velMult = heroUpgrades[placedHeroes[i].tipo].velocidade_mult;
+                if (velMult <= 0.0f) velMult = 1.0f;
+                float attackInterval = 1.0f / velMult;
+ 
+                if (placedHeroes[i].lastAttackTime >= attackInterval) {
+                     
+                     // ✅ CORRETO: Calcula a máscara de bit do herói
+                     int hero_bit = (1 << placedHeroes[i].tipo);
+                     
+                     // ✅ CORRETO: Verifica se o inimigo NÃO tem resistência contra este herói
+                     if ((enemies[targetEnemy].resistance & hero_bit) == 0) {
+                         // ⭐️ O herói PODE ATINGIR o inimigo (NÃO tem resistência)
                         enemies[targetEnemy].health -= placedHeroes[i].dano;
                         
                         if (enemies[targetEnemy].health <= 0) {
@@ -1167,16 +1244,16 @@ void UpdateGame(void) {
                             enemies[targetEnemy].active = 0;
                             enemies_defeated_count++;
                         }
-                    } else {
-                        // ⭐️ O herói NÃO pode atingir (tem resistência)
-                        TraceLog(LOG_WARNING, "Inimigo %d é resistente ao Herói %s!", targetEnemy, herois[placedHeroes[i].tipo].nome);
-                    }
-
+                     } else {
+                         // ⭐️ O herói NÃO pode atingir (tem resistência)
+                         TraceLog(LOG_WARNING, "Inimigo %d é resistente ao Herói %s!", targetEnemy, herois[placedHeroes[i].tipo].nome);
+                     }
+ 
                     placedHeroes[i].lastAttackTime = 0;
-                }
-            }
-            // ⭐️⭐️⭐️ FIM DA SUBSTITUIÇÃO ⭐️⭐️⭐️
-        }
+                 }
+             }
+             // ⭐️⭐️⭐️ FIM DA SUBSTITUIÇÃO ⭐️⭐️⭐️
+         }
 
         // --- SPAWN DE INIMIGOS ---
         // ⚠️ NOVO: Adiciona a verificação total_enemies_spawned < WAVE_SIZE[currentWave]
@@ -1228,6 +1305,18 @@ void UpdateGame(void) {
     // --- LÓGICA DE HABILIDADES ESPECIAIS (NECROMANTE E DRAGÃO) ---
     for (int i = 0; i < enemyCount; i++) {
         if (!enemies[i].active) continue;
+        
+        // ⭐️ NOVO: Configurar resistências especiais para alguns inimigos
+        if (enemies[i].type == INIMIGO_SPECTRO) {
+            // Fantasma: só pode ser atacado pelo Mago (tipo 3)
+            // Resistência a Guerreiro(0), Bardo(1), Paladino(2)
+            enemies[i].resistance = 0x07; // bits 0, 1, 2 = tipos 0, 1, 2
+        } 
+        else if (enemies[i].type == INIMIGO_NECROMANTE) {
+            // Necromante: só pode ser atacado pelo Paladino (tipo 2)
+            // Resistência a Guerreiro(0), Bardo(1), Mago(3)
+            enemies[i].resistance = 0x0D; // bits 0, 1, 3 = tipos 0, 1, 3
+        }
         
         // 1. Cura do Necromante
         if (enemies[i].type == INIMIGO_NECROMANTE) {
@@ -1347,6 +1436,7 @@ void UpdateGame(void) {
 
                     if (placedHeroes[targetHero].health <= 0) {
                         placedHeroes[targetHero].health = 0;
+                        lastHeroDied = true; // marcou que um herói morreu (poderá ser o último)
                         enemyTargetHero[i] = -1;
                     }
 
@@ -1388,12 +1478,13 @@ void UpdateGame(void) {
         if (placedHeroes[i].health > 0 && placedHeroes[i].is_burning) {
             placedHeroes[i].burn_timer -= dt;
             
-            // Perde 10% da vida máxima do herói (assumida como 100) por segundo
-            placedHeroes[i].health -= (int)(100 * 0.10f * dt); 
+            // ⭐️ AUMENTADO: Perde 20 pontos de vida por segundo (maior que antes)
+            placedHeroes[i].health -= (int)(40 * dt); 
             
             if (placedHeroes[i].health <= 0) {
                 placedHeroes[i].health = 0;
                 placedHeroes[i].is_burning = false;
+                lastHeroDied = true; // morreu por queima
             }
             
             if (placedHeroes[i].burn_timer <= 0.0f) {
@@ -1536,6 +1627,7 @@ void DrawGame(void) {
             }
 
             // Barra de vida
+
             int barWidth = 40;
             int barHeight = 5;
             int barX = placedHeroes[i].x - barWidth / 2;
@@ -1732,7 +1824,9 @@ void ResetGame(void)
     menuAberto = false;
     placementMode = false;
     selectedHeroType = -1;
-
+    lastHeroDied = false;
+    noHeroTimer = 0.0f;
+ 
     // Voltar ao gameplay
     current_game_state = PLAYING;
 }

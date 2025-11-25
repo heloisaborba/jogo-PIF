@@ -5,14 +5,14 @@
 
 // Tabela de estatísticas dos inimigos (deve corresponder ao enum EnemyType)
 const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
-    // INIMIGO_GOBLIN - Pode ser atingido por TODOS os heróis
+    // INIMIGO_GOBLIN - Pode ser atingido por TODOS EXCETO Paladino
     {
         .damage = 10,
         .speed = 2.0f,
         .maxHealth = 100,
         .recompensa = 10,
         .range = 50,
-        .resistance = 0, // Nenhuma resistência (todos podem atacar)
+        .resistance = 0x04, // bit 2 ativado = Paladino (tipo 2) NÃO pode atacar
         .special_ability = false
     },
     // INIMIGO_SPECTRO - Só pode ser atingido pelo MAGO
@@ -22,27 +22,27 @@ const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
         .maxHealth = 80,
         .recompensa = 15,
         .range = 60,
-        .resistance = 7, // 1 (Guerreiro) + 2 (Bardo) + 4 (Paladino) = 7
+        .resistance = 0x07, // bits 0,1,2 ativados = Guerreiro, Bardo, Paladino resistem
         .special_ability = false
     },
-    // INIMIGO_NECROMANTE - Só pode ser atingido pelo MAGO e PALADINO
+    // INIMIGO_NECROMANTE - Só pode ser atingido pelo PALADINO
     {
         .damage = 15,
         .speed = 1.5f,
         .maxHealth = 150,
         .recompensa = 25,
         .range = 70,
-        .resistance = 3, // 1 (Guerreiro) + 2 (Bardo) = 3
+        .resistance = 0x0B, // bits 0,1,3 ativados = Guerreiro, Bardo, Mago resistem (só Paladino ataca)
         .special_ability = true
     },
-    // INIMIGO_DRAGAO - Pode ser atingido por TODOS os heróis
+    // INIMIGO_DRAGAO - Pode ser atingido por TODOS EXCETO Paladino
     {
         .damage = 25,
         .speed = 1.8f,
         .maxHealth = 300,
         .recompensa = 50,
         .range = 80,
-        .resistance = 0, // Nenhuma resistência (todos podem atacar)
+        .resistance = 0x04, // bit 2 ativado = Paladino (tipo 2) NÃO pode atacar
         .special_ability = true
     }
 };
