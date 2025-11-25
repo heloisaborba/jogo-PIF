@@ -57,6 +57,11 @@ int placedHeroCount;
 bool placementMode;
 int selectedHeroType;
 
+// ✨ NOVO: Sistema de Upgrades
+HeroUpgrade heroUpgrades[MAX_HEROIS];
+bool menuUpgradesAberto = false;
+int selectedUpgradeHero = 0; // Índice do herói selecionado para upgrade
+
 // =======================
 // VARIÁVEIS GLOBAIS - CAMINHOS
 // =======================
@@ -337,6 +342,255 @@ void InicializarHerois(void) {
   herois[3].dano = 95;
   herois[3].alcance = 140;
   herois[3].texture = LoadTexture("resources/SapoMago.png");
+  
+  // ✨ NOVO: Inicializar upgrades para cada herói
+  for (int i = 0; i < MAX_HEROIS; i++) {
+    heroUpgrades[i].nivel_vida = 0;
+    heroUpgrades[i].nivel_dano = 0;
+    heroUpgrades[i].nivel_velocidade = 0;
+    heroUpgrades[i].vida_total = 100;
+    heroUpgrades[i].dano_total = herois[i].dano;
+    heroUpgrades[i].velocidade_mult = 1.0f;
+  }
+}
+
+// 💰 Função para comprar upgrade de herói
+int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
+  if (tipoHeroi < 0 || tipoHeroi >= MAX_HEROIS) return 0;
+  
+  int custoupgrade = 0;
+  int nivelAtual = 0;
+  
+  // Definir custo e nível atual baseado no tipo de upgrade
+  if (tipoUpgrade == 0) { // Vida
+    nivelAtual = heroUpgrades[tipoHeroi].nivel_vida;
+    if (nivelAtual >= 5) return 0; // Máximo de 5 níveis
+    custoupgrade = 50 * (nivelAtual + 1); // Custo cresce com nível
+  } else if (tipoUpgrade == 1) { // Dano
+    nivelAtual = heroUpgrades[tipoHeroi].nivel_dano;
+    if (nivelAtual >= 5) return 0;
+    custoupgrade = 60 * (nivelAtual + 1);
+  } else if (tipoUpgrade == 2) { // Velocidade
+    nivelAtual = heroUpgrades[tipoHeroi].nivel_velocidade;
+    if (nivelAtual >= 5) return 0;
+    custoupgrade = 40 * (nivelAtual + 1);
+  }
+  
+  // Verificar moedas suficientes
+  if (r->moedas < custoupgrade) return 0;
+  
+  // Aplicar upgrade
+  r->moedas -= custoupgrade;
+  
+  if (tipoUpgrade == 0) { // Vida
+    heroUpgrades[tipoHeroi].nivel_vida++;
+    heroUpgrades[tipoHeroi].vida_total = 100 + (heroUpgrades[tipoHeroi].nivel_vida * 20);
+    TraceLog(LOG_INFO, "Vida do %s aumentada para %d! Custo: %d moedas.", herois[tipoHeroi].nome, heroUpgrades[tipoHeroi].vida_total, custoupgrade);
+  } else if (tipoUpgrade == 1) { // Dano
+    heroUpgrades[tipoHeroi].nivel_dano++;
+    heroUpgrades[tipoHeroi].dano_total = herois[tipoHeroi].dano + (heroUpgrades[tipoHeroi].nivel_dano * 15);
+    TraceLog(LOG_INFO, "Dano do %s aumentado para %d! Custo: %d moedas.", herois[tipoHeroi].nome, heroUpgrades[tipoHeroi].dano_total, custoupgrade);
+  } else if (tipoUpgrade == 2) { // Velocidade
+    heroUpgrades[tipoHeroi].nivel_velocidade++;
+    heroUpgrades[tipoHeroi].velocidade_mult = 1.0f + (heroUpgrades[tipoHeroi].nivel_velocidade * 0.15f);
+    TraceLog(LOG_INFO, "Velocidade do %s aumentada para %.2fx! Custo: %d moedas.", herois[tipoHeroi].nome, heroUpgrades[tipoHeroi].velocidade_mult, custoupgrade);
+  }
+  
+  return 1;
+}
+
+// 💰 Função para desenhar a aba de upgrades
+void DrawMenuUpgrades(void) {
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    // Fundo do menu
+    DrawRectangle(40, 40, screenWidth - 80, screenHeight - 60, (Color){0, 0, 0, 220});
+    DrawRectangleLines(40, 40, screenWidth - 80, screenHeight - 60, GOLD);
+
+    // Título
+    DrawText("UPGRADES DE HERÓIS", screenWidth/2 - MeasureText("UPGRADES DE HERÓIS", 30)/2, 60, 30, GOLD);
+    DrawText("Pressione U para voltar",
+             screenWidth/2 - MeasureText("Pressione U para voltar", 20)/2,
+             100, 20, LIGHTGRAY);
+
+    // Cards de seleção de herói
+    int cardWidth = 140;
+    int cardHeight = 180;
+    int spacing = 15;
+    int startX = 60;
+    int startY = 140;
+
+    // Desenhar seletores de herói
+    for (int i = 0; i < MAX_HEROIS; i++) {
+        int cardX = startX + i * (cardWidth + spacing);
+        int cardY = startY;
+
+        Color cardColor = (i == selectedUpgradeHero) ? (Color){100, 150, 255, 255} : (Color){50, 50, 80, 255};
+        DrawRectangle(cardX, cardY, cardWidth, cardHeight, cardColor);
+        DrawRectangleLines(cardX, cardY, cardWidth, cardHeight, LIGHTGRAY);
+
+        // Nome do herói
+        DrawText(herois[i].nome,
+                 cardX + cardWidth/2 - MeasureText(herois[i].nome, 18)/2,
+                 cardY + 15,
+                 18, YELLOW);
+
+        // Ícone ampliado
+        int textureSize = 110;
+        int textureX = cardX + (cardWidth - textureSize) / 2;
+        int textureY = cardY + 25;
+        DrawTexturePro(herois[i].texture,
+                       (Rectangle){0, 0, herois[i].texture.width, herois[i].texture.height},
+                       (Rectangle){textureX, textureY, textureSize, textureSize},
+                       (Vector2){0, 0}, 0.0f, WHITE);
+    }
+
+    // Área de upgrades do herói selecionado - EXPANDIDA PARA BAIXO
+    int upgradeX = 60;
+    int upgradeY = 360;
+    int upgradeBoxWidth = screenWidth - 120;
+    int upgradeBoxHeight = screenHeight - 440;
+
+    DrawRectangle(upgradeX, upgradeY, upgradeBoxWidth, upgradeBoxHeight, (Color){50, 50, 80, 255});
+    DrawRectangleLines(upgradeX, upgradeY, upgradeBoxWidth, upgradeBoxHeight, GOLD);
+
+    // Verificar se nenhum herói foi selecionado
+    if (selectedUpgradeHero < 0 || selectedUpgradeHero >= MAX_HEROIS) {
+        // Mensagem pedindo para selecionar um herói
+        const char *msg = "Clique em um heroi acima para escolher qual evoluir!";
+        int msgWidth = MeasureText(msg, 20);
+        DrawText(msg, 
+                 upgradeX + (upgradeBoxWidth - msgWidth) / 2, 
+                 upgradeY + (upgradeBoxHeight - 20) / 2, 
+                 20, YELLOW);
+        return;
+    }
+
+    // Título de upgrade
+    char heroTitle[50];
+    sprintf(heroTitle, "Upgrades: %s", herois[selectedUpgradeHero].nome);
+    DrawText(heroTitle, upgradeX + 20, upgradeY + 15, 22, YELLOW);
+
+    // Informações de moedas
+    char moedaText[50];
+    sprintf(moedaText, "Moedas: %d", get_moedas(&gameRecursos));
+    DrawText(moedaText, upgradeX + upgradeBoxWidth - 200, upgradeY + 15, 20, GOLD);
+
+    // Desenhar botões de upgrade (Vida, Dano, Velocidade) - CENTRALIZADOS
+    const char *nomeUpgrades[] = {"VIDA", "DANO", "VELOCIDADE"};
+    int btnWidth = 200;
+    int btnHeight = 100;
+    int btnSpacing = 20;
+    int totalWidth = (3 * btnWidth) + (2 * btnSpacing);
+    int startUpgradeX = upgradeX + (upgradeBoxWidth - totalWidth) / 2;
+    int startUpgradeY = upgradeY + 80;
+
+    for (int i = 0; i < 3; i++) {
+        int btnX = startUpgradeX + i * (btnWidth + btnSpacing);
+        int btnY = startUpgradeY;
+
+        // Informações do upgrade
+        int nivelAtual = 0;
+        int custoupgrade = 0;
+        char infoText[100];
+
+        if (i == 0) { // Vida
+            nivelAtual = heroUpgrades[selectedUpgradeHero].nivel_vida;
+            custoupgrade = 50 * (nivelAtual + 1);
+            sprintf(infoText, "Nível: %d/5\nVida: %d", nivelAtual, heroUpgrades[selectedUpgradeHero].vida_total);
+        } else if (i == 1) { // Dano
+            nivelAtual = heroUpgrades[selectedUpgradeHero].nivel_dano;
+            custoupgrade = 60 * (nivelAtual + 1);
+            sprintf(infoText, "Nível: %d/5\nDano: %d", nivelAtual, heroUpgrades[selectedUpgradeHero].dano_total);
+        } else if (i == 2) { // Velocidade
+            nivelAtual = heroUpgrades[selectedUpgradeHero].nivel_velocidade;
+            custoupgrade = 40 * (nivelAtual + 1);
+            sprintf(infoText, "Nível: %d/5\nVel: %.2fx", nivelAtual, heroUpgrades[selectedUpgradeHero].velocidade_mult);
+        }
+
+        // Cor do botão
+        Color btnColor = (nivelAtual >= 5) ? (Color){100, 100, 100, 255} : 
+                         (gameRecursos.moedas >= custoupgrade) ? (Color){0, 150, 0, 255} : (Color){150, 0, 0, 255};
+
+        DrawRectangle(btnX, btnY, btnWidth, btnHeight, btnColor);
+        DrawRectangleLines(btnX, btnY, btnWidth, btnHeight, WHITE);
+
+        // Nome do upgrade
+        DrawText(nomeUpgrades[i],
+                 btnX + btnWidth/2 - MeasureText(nomeUpgrades[i], 20)/2,
+                 btnY + 10,
+                 20, WHITE);
+
+        // Informações - COM MELHOR ESPAÇAMENTO
+        DrawText(infoText,
+                 btnX + btnWidth/2 - MeasureText(infoText, 16)/2,
+                 btnY + 40,
+                 16, LIGHTGRAY);
+
+        // Custo - MAIS ABAIXO
+        char custoText[30];
+        sprintf(custoText, "Custo: %d", custoupgrade);
+        DrawText(custoText,
+                 btnX + btnWidth/2 - MeasureText(custoText, 14)/2,
+                 btnY + 80,
+                 14, GOLD);
+    }
+}
+
+// 💰 Função para verificar clique nos upgrades (apenas fase 2+)
+void VerificarCliqueUpgrades(void) {
+    if (currentWave < 2) return; // Não funciona na fase 1
+    
+    Vector2 mousePos = GetMousePosition();
+    bool mousePressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+    if (!mousePressed) return;
+
+    // Verificar clique nos seletores de herói
+    int cardWidth = 140;
+    int spacing = 15;
+    int startX = 60;
+    int startY = 140;
+
+    for (int i = 0; i < MAX_HEROIS; i++) {
+        int cardX = startX + i * (cardWidth + spacing);
+        int cardY = startY;
+
+        Rectangle cardRect = { cardX, cardY, cardWidth, 180 };
+        if (CheckCollisionPointRec(mousePos, cardRect)) {
+            selectedUpgradeHero = i;
+            TraceLog(LOG_INFO, "Herói %d selecionado!", i);
+            return;
+        }
+    }
+
+    // Verificar clique nos botões de upgrade
+    int screenWidth = GetScreenWidth();
+    int btnWidth = 200;
+    int btnHeight = 100;
+    int btnSpacing = 20;
+    int upgradeX = 60;
+    int upgradeY = 360;
+    int upgradeBoxWidth = screenWidth - 120;
+    int totalWidth = (3 * btnWidth) + (2 * btnSpacing);
+    int startUpgradeX = upgradeX + (upgradeBoxWidth - totalWidth) / 2;
+    int startUpgradeY = upgradeY + 80;
+
+    for (int i = 0; i < 3; i++) {
+        int btnX = startUpgradeX + i * (btnWidth + btnSpacing);
+        int btnY = startUpgradeY;
+
+        Rectangle btnRect = { btnX, btnY, btnWidth, btnHeight };
+        if (CheckCollisionPointRec(mousePos, btnRect)) {
+            if (ComprarUpgradeHeroi(&gameRecursos, selectedUpgradeHero, i)) {
+                TraceLog(LOG_INFO, "Upgrade adquirido!");
+            } else {
+                TraceLog(LOG_WARNING, "Não foi possível comprar upgrade!");
+            }
+            return;
+        }
+    }
 }
 
 // 💰 Função para comprar herói específico
@@ -376,13 +630,13 @@ void DrawMenuHerois(void) {
              screenWidth/2 - MeasureText("Pressione H para fechar", 20)/2,
              100, 20, LIGHTGRAY);
 
-    // Tamanho dos cards
-    int cardWidth  = 170;
-    int cardHeight = 300;   // Novo tamanho maior
+    // Tamanho dos cards - AUMENTADO E MELHOR ESPAÇADO
+    int cardWidth  = 160;
+    int cardHeight = 320;
 
-    int spacing = 20;
+    int spacing = 30;
     int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
-    int startY = 160;
+    int startY = 180;
 
     for (int i = 0; i < MAX_HEROIS; i++) {
         int cardX = startX + i * (cardWidth + spacing);
@@ -394,21 +648,21 @@ void DrawMenuHerois(void) {
 
         // Nome centralizado
         DrawText(herois[i].nome,
-                 cardX + cardWidth/2 - MeasureText(herois[i].nome, 22)/2,
-                 cardY + 15,
-                 22, YELLOW);
+                 cardX + cardWidth/2 - MeasureText(herois[i].nome, 20)/2,
+                 cardY + 10,
+                 20, YELLOW);
 
-        // Ícone centralizado
-        int textureSize = 95;
+        // Ícone centralizado - REDIMENSIONADO
+        int textureSize = 85;
         int textureX = cardX + (cardWidth - textureSize) / 2;
-        int textureY = cardY + 60;
+        int textureY = cardY + 45;
         DrawTexturePro(herois[i].texture,
                        (Rectangle){0, 0, herois[i].texture.width, herois[i].texture.height},
                        (Rectangle){textureX, textureY, textureSize, textureSize},
                        (Vector2){0, 0}, 0.0f, WHITE);
 
-        // Estatísticas centralizadas
-        int statsStartY = cardY + 170;  // ajustado para centralizar melhor
+        // Estatísticas centralizadas - MELHOR ESPAÇAMENTO
+        int statsStartY = cardY + 150;
 
         char custoTxt[32];
         char danoTxt[32];
@@ -419,41 +673,60 @@ void DrawMenuHerois(void) {
         sprintf(alcanceTxt, "Alcance: %d",herois[i].alcance);
 
         DrawText(custoTxt,
-                 cardX + cardWidth/2 - MeasureText(custoTxt, 18)/2,
+                 cardX + cardWidth/2 - MeasureText(custoTxt, 14)/2,
                  statsStartY,
-                 18, GOLD);
+                 14, GOLD);
 
         DrawText(danoTxt,
-                 cardX + cardWidth/2 - MeasureText(danoTxt, 18)/2,
-                 statsStartY + 25,
-                 18, RED);
+                 cardX + cardWidth/2 - MeasureText(danoTxt, 14)/2,
+                 statsStartY + 20,
+                 14, RED);
 
         DrawText(alcanceTxt,
-                 cardX + cardWidth/2 - MeasureText(alcanceTxt, 18)/2,
-                 statsStartY + 50,
-                 18, BLUE);
+                 cardX + cardWidth/2 - MeasureText(alcanceTxt, 14)/2,
+                 statsStartY + 40,
+                 14, BLUE);
 
-        // Botão
+        // Botão - MELHOR POSICIONADO
         Color btnColor = (gameRecursos.moedas >= herois[i].custo) ? GREEN : RED;
 
-        int btnWidth  = cardWidth - 40;
-        int btnHeight = 35;
+        int btnWidth  = cardWidth - 20;
+        int btnHeight = 40;
         int btnX = cardX + (cardWidth - btnWidth) / 2;
-        int btnY = cardY + cardHeight - btnHeight - 15;
+        int btnY = cardY + cardHeight - btnHeight - 10;
 
         DrawRectangle(btnX, btnY, btnWidth, btnHeight, btnColor);
+        DrawRectangleLines(btnX, btnY, btnWidth, btnHeight, WHITE);
 
         DrawText("COMPRAR",
-                 btnX + btnWidth/2 - MeasureText("COMPRAR", 18)/2,
-                 btnY + 5,
-                 18, WHITE);
+                 btnX + btnWidth/2 - MeasureText("COMPRAR", 16)/2,
+                 btnY + 8,
+                 16, WHITE);
     }
 
     // Rodapé
     DrawText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões",
-             screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 18)/2,
-             startY + cardHeight + 40,
-             18, LIGHTGRAY);
+             screenWidth/2 - MeasureText("Use 1, 2, 3, 4 para comprar rapidamente ou clique nos botões", 16)/2,
+             startY + cardHeight + 50,
+             16, LIGHTGRAY);
+    
+    // ✨ NOVO: Botão de aba de Upgrades - REDUZIDO (apenas fase 2+)
+    if (currentWave >= 2) {
+        Rectangle btnUpgrades = { screenWidth - 150, 55, 120, 35 };
+        Color btnUpgradesColor = CheckCollisionPointRec(GetMousePosition(), btnUpgrades) ? YELLOW : GOLD;
+        DrawRectangleRec(btnUpgrades, btnUpgradesColor);
+        DrawRectangleLines((int)btnUpgrades.x, (int)btnUpgrades.y, (int)btnUpgrades.width, (int)btnUpgrades.height, WHITE);
+        DrawText("U - UPGRADES", btnUpgrades.x + 10, btnUpgrades.y + 8, 14, BLACK);
+        
+        // Verificar clique no botão de upgrades
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), btnUpgrades)) {
+            menuUpgradesAberto = !menuUpgradesAberto;
+            if (menuUpgradesAberto) {
+                selectedUpgradeHero = -1; // Força o jogador a escolher um herói
+            }
+            return;
+        }
+    }
 }
 
 // 💰 Função para verificar clique nos botões do menu
@@ -463,11 +736,11 @@ void VerificarCliqueMenu(void) {
     int screenWidth = GetScreenWidth();
 
     // Use os mesmos parâmetros gráficos de DrawMenuHerois
-    int cardWidth = 170;
-    int cardHeight = 300;
-    int spacing = 20;
+    int cardWidth = 160;
+    int cardHeight = 320;
+    int spacing = 30;
     int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
-    int startY = 160;
+    int startY = 180;
 
     if (!mouseReleased) return;
 
@@ -476,10 +749,10 @@ void VerificarCliqueMenu(void) {
         int cardY = startY;
 
         // Botão conforme desenhado em DrawMenuHerois (com hitbox expandida para maior tolerância)
-        int btnWidth = cardWidth - 40;
-        int btnHeight = 35;
-        int btnX = cardX + (cardWidth - btnWidth) / 2; // = cardX + 20
-        int btnY = cardY + cardHeight - btnHeight - 15; // alinhado com DrawMenuHerois
+        int btnWidth = cardWidth - 20;
+        int btnHeight = 40;
+        int btnX = cardX + (cardWidth - btnWidth) / 2;
+        int btnY = cardY + cardHeight - btnHeight - 10;
 
         // Expandir hitbox em ~15 pixels de cada lado para maior tolerância de clique
         int hitboxPadding = 15;
@@ -693,6 +966,18 @@ void UpdateGame(void) {
     // =========================================================
     if (IsKeyPressed(KEY_H)) {
         menuAberto = !menuAberto;  // alterna entre abrir e fechar
+        menuUpgradesAberto = false; // Fecha upgrades se abrir menu de compra
+        return;
+    }
+
+    // ✨ NOVO: ABRIR / FECHAR MENU DE UPGRADES (apenas fase 2+)
+    if (IsKeyPressed(KEY_U) && currentWave >= 2) {
+        menuUpgradesAberto = !menuUpgradesAberto;
+        menuAberto = false; // Fecha menu de compra se abrir upgrades
+        if (menuUpgradesAberto) {
+            selectedUpgradeHero = -1; // Força o jogador a escolher um herói
+            TraceLog(LOG_INFO, "Menu de upgrades aberto!");
+        }
         return;
     }
 
@@ -710,6 +995,12 @@ void UpdateGame(void) {
     // =========================================================
     if (menuAberto) {
         VerificarCliqueMenu();
+        return;
+    }
+
+    // ✨ NOVO: 4B. MENU DE UPGRADES ABERTO
+    if (menuUpgradesAberto) {
+        VerificarCliqueUpgrades();
         return;
     }
 
@@ -1049,21 +1340,22 @@ void UpdateGame(void) {
 // 🔹 Função para desenhar UI normal
 void DrawGameUI(void) {
   // Fundo semi-transparente para as informações
-  DrawRectangle(10, 10, 280, 110, (Color){0, 0, 0, 128});
+  DrawRectangle(10, 10, 200, 115, (Color){0, 0, 0, 128});
   
-  // Torre HP
+  // Torre HP (no topo esquerdo)
   DrawText(TextFormat("Torre HP: %d", towerHealth), 20, 20, 20, RED);
  
- // Indicador de Queima na Torre
- if (is_tower_burning) {
-    DrawText("QUEIMANDO!", 20, 45, 15, ORANGE);
- }
+  // Indicador de Queima na Torre
+  if (is_tower_burning) {
+    DrawText("QUEIMANDO!", 20, 42, 12, ORANGE);
+  }
   
-  // 💰 Moedas
-  DrawText(TextFormat("Moedas: %d", get_moedas(&gameRecursos)), 20, 70, 20, GOLD);
+  // 💰 Moedas (logo embaixo do HP da Torre - sem espaço)
+  DrawText(TextFormat("Moedas: %d", get_moedas(&gameRecursos)), 20, 50, 20, GOLD);
   
-  // Instruções para abrir menu
-  DrawText("H - Abrir loja de herois", 20, 100, 15, LIGHTGRAY);
+  // Instruções para abrir menu (coluna)
+  DrawText("H - Loja", 20, 78, 14, LIGHTGRAY);
+  DrawText("U - Upgrades", 20, 95, 14, LIGHTGRAY);
 
   // Indicação de modo de colocação
   if (placementMode) {
@@ -1171,6 +1463,11 @@ void DrawGame(void) {
     // 💰 Menu de heróis (quando o jogo NÃO está pausado)
     if (menuAberto) {
         DrawMenuHerois();
+    }
+    
+    // ✨ NOVO: Menu de Upgrades (apenas fase 2+)
+    if (menuUpgradesAberto && currentWave >= 2) {
+        DrawMenuUpgrades();
     }
     
     // =======================================================
