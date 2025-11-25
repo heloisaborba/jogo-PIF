@@ -38,6 +38,12 @@ recursos gameRecursos;
 bool is_tower_burning;
 float tower_burn_timer;
 
+// ⭐️ NOVO: Ataque da Torre
+float tower_attack_timer = 0.0f;
+const float TOWER_ATTACK_INTERVAL = 1.0f; // Torre ataca a cada 1 segundo
+const float TOWER_ATTACK_RANGE = 150.0f; // Alcance de ataque da torre (pixels)
+const int TOWER_ATTACK_DAMAGE = 30; // Dano por ataque
+
 // Spawn
 float spawnTimer;
 static const float SPAWN_INTERVAL = 2.0f;
@@ -1377,21 +1383,16 @@ void UpdateGame(void) {
     for (int i = 0; i < enemyCount; i++) {
         if (!enemies[i].active) continue;
 
-        // ⭐️ VERIFICA SE CHEGOU NA TORRE ANTES DE QUALQUER COISA
+        // ⭐️ VERIFICA SE CHEGOU NA TORRE - AGORA A TORRE ATACA O INIMIGO
         if (EnemyReachedTower(enemies[i])) {
-            towerHealth -= enemies[i].damage; 
-            enemies[i].active = 0;
-            
+            // Inimigo chegou na torre, sofre dano da torre
+            // Não morre instantaneamente mais, a torre vai atacar
             if (enemies[i].type == INIMIGO_DRAGAO) {
                 is_tower_burning = true;
                 tower_burn_timer = 5.0f;
             }
-
-            if (towerHealth <= 0) {
-                towerHealth = 0;
-                current_game_state = GAME_OVER;
-            }
-            continue;
+            // Torre será atacada se o inimigo ficar perto dela
+            // continue para permitir que o inimigo continue vivo perto da torre
         }
 
         int targetHero = enemyTargetHero[i];
@@ -1452,6 +1453,72 @@ void UpdateGame(void) {
             UpdateEnemy(&enemies[i]);
         }
     }
+
+    // --- ATAQUE DA TORRE CONTRA INIMIGOS ---
+    tower_attack_timer += dt;
+    if (tower_attack_timer >= TOWER_ATTACK_INTERVAL) {
+        tower_attack_timer = 0.0f;
+        
+        // Posição aproximada da torre (centro)
+        Vector2 towerPos = {650 + 40, 100 + 40};
+        
+        // Torre ataca inimigos no alcance
+        for (int i = 0; i < enemyCount; i++) {
+            if (!enemies[i].active) continue;
+            
+            float dx = enemies[i].x - towerPos.x;
+            float dy = enemies[i].y - towerPos.y;
+            float dist = sqrtf(dx*dx + dy*dy);
+            
+            // Se inimigo está no alcance da torre, sofre dano
+            if (dist <= TOWER_ATTACK_RANGE) {
+                enemies[i].health -= TOWER_ATTACK_DAMAGE;
+                
+                TraceLog(LOG_DEBUG, "Torre atacou inimigo! Dano: %d, Vida restante: %d", TOWER_ATTACK_DAMAGE, enemies[i].health);
+                
+                // Se inimigo morre pelo ataque da torre
+                if (enemies[i].health <= 0) {
+                    enemies[i].active = 0;
+                    enemies[i].health = 0;
+                    TraceLog(LOG_INFO, "Inimigo foi destruído pela torre!");
+                }
+            }
+        }
+    }
+    
+    // --- INIMIGOS ATACAM A TORRE (CONTRA-ATAQUE) ---
+    Vector2 towerPos = {650 + 40, 100 + 40};
+    static float tower_enemy_attack_timer = 0.0f;
+    
+    tower_enemy_attack_timer += dt;
+    
+    for (int i = 0; i < enemyCount; i++) {
+        if (!enemies[i].active) continue;
+        
+        float dx = enemies[i].x - towerPos.x;
+        float dy = enemies[i].y - towerPos.y;
+        float dist = sqrtf(dx*dx + dy*dy);
+        
+        // Se inimigo chegou muito perto da torre (alcance de ataque do inimigo)
+        if (dist <= enemies[i].range && EnemyReachedTower(enemies[i])) {
+            // Inimigo está atacando a torre
+            if (tower_enemy_attack_timer >= ENEMY_ATTACK_INTERVAL) {
+                towerHealth -= enemies[i].damage;
+                
+                TraceLog(LOG_WARNING, "Inimigo atacou a torre! Dano: %d, HP restante: %d", enemies[i].damage, towerHealth);
+                
+                if (towerHealth <= 0) {
+                    towerHealth = 0;
+                    current_game_state = GAME_OVER;
+                    TraceLog(LOG_ERROR, "Torre foi destruída!");
+                }
+                
+                tower_enemy_attack_timer = 0.0f;
+            }
+        }
+    }
+
+
     // --- PROCESSAMENTO DE STATUS (QUEIMA) ---
 
     // Dano de Queima na Torre
@@ -1463,7 +1530,6 @@ void UpdateGame(void) {
         
         if (towerHealth <= 0) {
             towerHealth = 0;
-            is_tower_burning = false;
             current_game_state = GAME_OVER;
             return;
         }
