@@ -90,18 +90,18 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
         backButtonRect = (Rectangle){ 40, sh - 80, 140, 50 };
 
         Vector2 mousePos = GetMousePosition();
-        bool mouseClicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        bool mouseReleased = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
 
         if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE))
             return;
 
-        if (IsKeyPressed(KEY_LEFT) || (mouseClicked && CheckCollisionPointRec(mousePos, leftArrowRect)))
+        if (IsKeyPressed(KEY_LEFT) || (mouseReleased && CheckCollisionPointRec(mousePos, leftArrowRect)))
             currentPersonagem = (currentPersonagem - 1 + 4) % 4;
 
-        if (IsKeyPressed(KEY_RIGHT) || (mouseClicked && CheckCollisionPointRec(mousePos, rightArrowRect)))
+        if (IsKeyPressed(KEY_RIGHT) || (mouseReleased && CheckCollisionPointRec(mousePos, rightArrowRect)))
             currentPersonagem = (currentPersonagem + 1) % 4;
 
-        if (mouseClicked && CheckCollisionPointRec(mousePos, backButtonRect))
+        if (mouseReleased && CheckCollisionPointRec(mousePos, backButtonRect))
             return;
 
         BeginDrawing();
@@ -278,10 +278,10 @@ void ShowHowToPlayMenu() {
         backButtonRect = (Rectangle){ 40, sh - 80, 180, 50 };
 
         Vector2 mousePos = GetMousePosition();
-        bool mouseClicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        bool mouseReleased = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
 
         if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE) ||
-            (mouseClicked && CheckCollisionPointRec(mousePos, backButtonRect))) {
+            (mouseReleased && CheckCollisionPointRec(mousePos, backButtonRect))) {
             return;
         }
 
@@ -423,10 +423,10 @@ void ShowRankingMenu() {
         backButtonRect = (Rectangle){ 50, sh - 90, 200, 55 };
 
         Vector2 mousePos = GetMousePosition();
-        bool mouseClicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-        
+        bool mouseReleased = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
+
         if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE) || 
-            (mouseClicked && CheckCollisionPointRec(mousePos, backButtonRect))) {
+            (mouseReleased && CheckCollisionPointRec(mousePos, backButtonRect))) {
             break;
         }
 

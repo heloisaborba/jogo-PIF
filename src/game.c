@@ -342,19 +342,21 @@ void InicializarHerois(void) {
 // 💰 Função para comprar herói específico
 int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
   if (tipoHeroi >= 0 && tipoHeroi < MAX_HEROIS) {
-    if (r->moedas >= herois[tipoHeroi].custo) {
-      r->moedas -= herois[tipoHeroi].custo;
-      // Entrar no modo de colocação
-      if (placedHeroCount < MAX_HEROIS) {
-        placementMode = true;
-        selectedHeroType = tipoHeroi;
-        menuAberto = false; // Fecha o menu
-        TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
-      } else {
-        TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s.", herois[tipoHeroi].nome);
-      }
-      return 1; // Compra realizada
-    }
+        if (r->moedas >= herois[tipoHeroi].custo) {
+            // Verifica se ainda cabe mais heróis antes de debitar moedas
+            if (placedHeroCount < MAX_HEROIS) {
+                r->moedas -= herois[tipoHeroi].custo;
+                // Entrar no modo de colocação
+                placementMode = true;
+                selectedHeroType = tipoHeroi;
+                menuAberto = false; // Fecha o menu
+                TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
+                return 1; // Compra realizada
+            } else {
+                TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s.", herois[tipoHeroi].nome);
+                return 0; // Não há espaço para colocar
+            }
+        }
   }
   return 0; // Moedas insuficientes ou tipo inválido
 }
@@ -456,32 +458,47 @@ void DrawMenuHerois(void) {
 
 // 💰 Função para verificar clique nos botões do menu
 void VerificarCliqueMenu(void) {
-  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
     Vector2 mousePos = GetMousePosition();
+    bool mouseReleased = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
     int screenWidth = GetScreenWidth();
-    
-    int cardWidth = 185;
-    int cardHeight = 245;
+
+    // Use os mesmos parâmetros gráficos de DrawMenuHerois
+    int cardWidth = 170;
+    int cardHeight = 300;
     int spacing = 20;
     int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
-    int startY = 190;
-    
+    int startY = 160;
+
+    if (!mouseReleased) return;
+
     for (int i = 0; i < MAX_HEROIS; i++) {
-      int cardX = startX + i * (cardWidth + spacing);
-      int cardY = startY;
-      
-      // Verifica clique no botão de compra (coordenadas atualizadas)
-      Rectangle btnRect = {cardX + 20, cardY + cardHeight - 40, cardWidth - 40, 30};
-      if (CheckCollisionPointRec(mousePos, btnRect)) {
-        if (ComprarHeroiEspecifico(&gameRecursos, i)) {
-          TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[i].nome, gameRecursos.moedas);
-        } else {
-          TraceLog(LOG_WARNING, "Moedas insuficientes para comprar %s!", herois[i].nome);
+        int cardX = startX + i * (cardWidth + spacing);
+        int cardY = startY;
+
+        // Botão conforme desenhado em DrawMenuHerois (com hitbox expandida para maior tolerância)
+        int btnWidth = cardWidth - 40;
+        int btnHeight = 35;
+        int btnX = cardX + (cardWidth - btnWidth) / 2; // = cardX + 20
+        int btnY = cardY + cardHeight - btnHeight - 15; // alinhado com DrawMenuHerois
+
+        // Expandir hitbox em ~15 pixels de cada lado para maior tolerância de clique
+        int hitboxPadding = 15;
+        Rectangle btnRect = { 
+            btnX - hitboxPadding, 
+            btnY - hitboxPadding, 
+            btnWidth + (hitboxPadding * 2), 
+            btnHeight + (hitboxPadding * 2) 
+        };
+
+        if (CheckCollisionPointRec(mousePos, btnRect)) {
+            if (ComprarHeroiEspecifico(&gameRecursos, i)) {
+                TraceLog(LOG_INFO, "%s comprado! Moedas restantes: %d", herois[i].nome, gameRecursos.moedas);
+            } else {
+                TraceLog(LOG_WARNING, "Não foi possível comprar %s! Moedas: %d", herois[i].nome, gameRecursos.moedas);
+            }
+            break;
         }
-        break;
-      }
     }
-  }
 }
 
 // ✨ ADIÇÃO 2: Função para iniciar a Fase 2 (transição)
