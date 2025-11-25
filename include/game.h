@@ -49,6 +49,16 @@ typedef struct {
     Texture2D texture;
 } Heroi;
 
+// Estrutura para upgrades de herói
+typedef struct {
+    int nivel_vida;      // Nível de upgrade de vida (0-5)
+    int nivel_dano;      // Nível de upgrade de dano (0-5)
+    int nivel_velocidade; // Nível de upgrade de velocidade (0-5)
+    int vida_total;      // Vida total (vida base + upgrade)
+    int dano_total;      // Dano total (dano base + upgrade)
+    float velocidade_mult; // Multiplicador de velocidade (padrão 1.0)
+} HeroUpgrade;
+
 // Estrutura para heróis colocados no mapa
 typedef struct {
     float x, y;
