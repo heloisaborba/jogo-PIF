@@ -1321,7 +1321,7 @@ void UpdateGame(void) {
         else if (enemies[i].type == INIMIGO_NECROMANTE) {
             // Necromante: só pode ser atacado pelo Paladino (tipo 2)
             // Resistência a Guerreiro(0), Bardo(1), Mago(3)
-            enemies[i].resistance = 0x0D; // bits 0, 1, 3 = tipos 0, 1, 3
+            enemies[i].resistance = 0x03; // bits 0, 1, 3 = tipos 0, 1, 3
         }
         
         // 1. Cura do Necromante
@@ -1432,7 +1432,7 @@ void UpdateGame(void) {
                     // Lógica de Queima (Dragão)
                     if (enemies[i].type == INIMIGO_DRAGAO) {
                         placedHeroes[targetHero].is_burning = true;
-                        placedHeroes[targetHero].burn_timer = 5.0f;
+                        placedHeroes[targetHero].burn_timer = 2.5f;
                     }
 
                     if (placedHeroes[targetHero].health <= 0) {
