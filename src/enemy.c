@@ -5,14 +5,14 @@
 
 // Tabela de estatísticas dos inimigos (deve corresponder ao enum EnemyType)
 const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
-    // INIMIGO_GOBLIN - Pode ser atingido por TODOS EXCETO Paladino
+    // INIMIGO_GOBLIN - Pode ser atingido por TODOS os heróis
     {
         .damage = 10,
         .speed = 2.0f,
         .maxHealth = 100,
         .recompensa = 10,
         .range = 50,
-        .resistance = 0x04, // bit 2 ativado = Paladino (tipo 2) NÃO pode atacar
+        .resistance = 0, // Nenhuma resistência (todos podem atacar)
         .special_ability = false
     },
     // INIMIGO_SPECTRO - Só pode ser atingido pelo MAGO
@@ -22,27 +22,27 @@ const EnemyConfig ENEMY_STATS[NUM_ENEMY_TYPES] = {
         .maxHealth = 80,
         .recompensa = 15,
         .range = 60,
-        .resistance = 0x07, // bits 0,1,2 ativados = Guerreiro, Bardo, Paladino resistem
+        .resistance = 7, // 1 (Guerreiro) + 2 (Bardo) + 4 (Paladino) = 7
         .special_ability = false
     },
-    // INIMIGO_NECROMANTE - Só pode ser atingido pelo PALADINO
+    // INIMIGO_NECROMANTE - Só pode ser atingido pelo MAGO e PALADINO
     {
         .damage = 15,
         .speed = 1.5f,
         .maxHealth = 150,
         .recompensa = 25,
         .range = 70,
-        .resistance = 0x0B, // bits 0,1,3 ativados = Guerreiro, Bardo, Mago resistem (só Paladino ataca)
+        .resistance = 3, // 1 (Guerreiro) + 2 (Bardo) = 3
         .special_ability = true
     },
-    // INIMIGO_DRAGAO - Pode ser atingido por TODOS EXCETO Paladino
+    // INIMIGO_DRAGAO - Pode ser atingido por TODOS os heróis
     {
         .damage = 25,
         .speed = 1.8f,
         .maxHealth = 300,
         .recompensa = 50,
         .range = 80,
-        .resistance = 0x04, // bit 2 ativado = Paladino (tipo 2) NÃO pode atacar
+        .resistance = 0, // Nenhuma resistência (todos podem atacar)
         .special_ability = true
     }
 };
@@ -85,11 +85,12 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
     enemy.x = x;
     enemy.y = y;
     enemy.currentWaypoint = 0;
-
+    
     // ⭐️ INICIALIZAÇÃO DO CAMINHO
+    // Por padrão começa no caminho inferior
     enemy.pathIndex = 0;
-
-    // Estatísticas base
+    
+    // Configura estatísticas baseadas na tabela
     enemy.damage = ENEMY_STATS[type].damage;
     enemy.speed = ENEMY_STATS[type].speed;
     enemy.maxHealth = ENEMY_STATS[type].maxHealth;
@@ -97,33 +98,14 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
     enemy.recompensa_moedas = ENEMY_STATS[type].recompensa;
     enemy.range = ENEMY_STATS[type].range;
     enemy.resistance = ENEMY_STATS[type].resistance;
-
-    // ====== AUMENTO DE VELOCIDADE POR FASE ======
-    if (currentWave == 2) {
-        enemy.speed *= 1.35f;   // +35% mais rápido
-    }
-    else if (currentWave == 3) {
-        enemy.speed *= 1.85f;   // +75% mais rápido
-    }
-    // ============================================
-
-    // ====== AUMENTO DE DANO POR FASE ======
-    if (currentWave == 2) {
-        enemy.damage *= 1.40f;  // +40% dano
-    }
-    else if (currentWave == 3) {
-        enemy.damage *= 1.80f;  // +80% dano
-    }
-    // ======================================
-
-    // Status especiais
+    
+    // Inicializa status especiais
     enemy.is_burning = false;
     enemy.burning_timer = 0.0f;
     enemy.necromante_heal_timer = 0.0f;
-
+    
     return enemy;
 }
-
 
 void UpdateEnemy(Enemy *e) {
     if (!e->active) return;

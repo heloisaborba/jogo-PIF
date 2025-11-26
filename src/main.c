@@ -6,6 +6,77 @@
 #include "menu.h"
 #include "game.h" // Contém GameState e current_game_state
 #include <stdio.h> // Para printf
+#include <string.h>
+
+// Armazena o nome do jogador para ranking
+char playerName[64] = "Anon";
+
+// Prompt simples para inserir nome do jogador antes do jogo começar
+void PromptPlayerName(void) {
+    // buffer local para edição
+    char buffer[64];
+    buffer[0] = '\0';
+    int len = 0;
+
+    bool done = false;
+
+    // Use GetCharPressed() to capture typed characters (supports letters, numbers, space)
+    while (!WindowShouldClose() && !done) {
+        int c = GetCharPressed();
+        // handle typed characters
+        while (c > 0) {
+            // filter non-printable
+            if (c >= 32 && c < 128 && len < (int)sizeof(buffer)-1) {
+                buffer[len++] = (char)c;
+                buffer[len] = '\0';
+            }
+            c = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            if (len > 0) { len--; buffer[len] = '\0'; }
+        }
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+            done = true;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            // keep default Anon and exit
+            buffer[0] = '\0';
+            done = true;
+        }
+
+        // drawing
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        const char *title = "DIGITE SEU NOME";
+        int tw = MeasureText(title, 28);
+        DrawText(title, GetScreenWidth()/2 - tw/2, 120, 28, GOLD);
+
+        // input box
+        int boxW = 500; int boxH = 60;
+        int boxX = GetScreenWidth()/2 - boxW/2;
+        int boxY = GetScreenHeight()/2 - boxH/2;
+        DrawRectangle(boxX, boxY, boxW, boxH, LIGHTGRAY);
+        DrawRectangleLines(boxX, boxY, boxW, boxH, DARKGRAY);
+
+        // Draw current buffer (allow space characters)
+        DrawText(buffer, boxX + 10, boxY + 12, 28, BLACK);
+
+        // hint
+        DrawText("Enter para confirmar. Esc para anon.", GetScreenWidth()/2 - 200, boxY + boxH + 10, 14, GRAY);
+
+        EndDrawing();
+    }
+
+    // copy buffer if not empty
+    if (buffer[0] != '\0') {
+        strncpy(playerName, buffer, sizeof(playerName)-1);
+        playerName[sizeof(playerName)-1] = '\0';
+    }
+}
 
 // Tamanho da tela
 const int screenWidth = 800;
@@ -16,6 +87,8 @@ const int screenHeight = 600;
 int main(void) {
     InitWindow(screenWidth, screenHeight, "Tower Defense Medieval");
     SetTargetFPS(60);
+    // Inicializa ranking a partir do arquivo (uma vez ao iniciar o programa)
+    Ranking_Init("ranking.txt");
 
     printf("DEBUG: Janela inicializada, entrando no loop principal\n");
 
@@ -31,6 +104,9 @@ int main(void) {
 
         else if (option == MENU_START) {
             printf("DEBUG: Opção START selecionada, iniciando jogo...\n");
+            // Pergunta o nome do jogador antes de iniciar
+            PromptPlayerName();
+            printf("DEBUG: Nome do jogador: %s\n", playerName);
             
             // --- Bloco de Carregamento (Mantido) ---
             printf("DEBUG: Mostrando tela de teste...\n");

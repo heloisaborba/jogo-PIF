@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "ranking.h"
 
 const int WAVE_SIZE[] = {0, 15, 25, 40};
 
@@ -73,6 +74,13 @@ bool sellMode = false; // Modo de seleção para vender heróis
 int selectedHeroToSell = -1; // Herói selecionado para venda
 float sellMessageTimer = 0.0f; // Timer para mostrar mensagem de venda
 char sellMessage[100] = ""; // Mensagem de feedback da venda
+
+// Cronômetro do jogo (segundos)
+double gameTimer = 0.0;
+// Se o tempo já foi salvo no ranking para esta partida
+bool rankingSaved = false;
+// Nome do jogador definido em main.c
+extern char playerName[64];
 
 // ✨ NOVO: recompensa quando não há heróis
 float noHeroTimer = 0.0f; // acumula tempo para dar 5 moedas por segundo quando o último herói morreu
@@ -950,6 +958,10 @@ void InitGame(void) {
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
 
+    // Timer e ranking
+    gameTimer = 0.0;
+    rankingSaved = false;
+
     // ======================
     // INIMIGOS
     // ======================
@@ -1184,6 +1196,9 @@ void UpdateGame(void) {
     // 🔹 6. LÓGICA NORMAL DO JOGO (somente PLAYING)
     // =========================================================
     if (current_game_state != PLAYING) return;
+
+    // Atualiza cronômetro do jogo
+    gameTimer += dt;
 
     // --- RECOMPENSA: +5 MOEDAS/SEGUNDO SE NÃO HOUVER HERÓIS COLOCADOS ---
     if (lastHeroDied) {
@@ -1604,6 +1619,22 @@ void DrawGameUI(void) {
     DrawRectangleLines(GetScreenWidth()/2 - textWidth/2 - 10, 15, textWidth + 20, 35, YELLOW);
     DrawText("Clique no mapa para colocar o heroi", GetScreenWidth()/2 - textWidth/2, 22, 18, YELLOW);
   }
+
+  // Cronômetro do jogo na parte superior (mm:ss)
+  int totalSeconds = (int)gameTimer;
+  int minutes = totalSeconds / 60;
+  int seconds = totalSeconds % 60;
+  char timeText[32];
+  sprintf(timeText, "%02d:%02d", minutes, seconds);
+  int timeTextWidth = MeasureText(timeText, 32);
+  int timerX = GetScreenWidth() / 2 - timeTextWidth / 2;
+  
+  // Fundo preto com borda
+  DrawRectangle(timerX - 20, 10, timeTextWidth + 40, 50, BLACK);
+  DrawRectangleLines(timerX - 20, 10, timeTextWidth + 40, 50, GOLD);
+  
+  // Texto do timer em branco
+  DrawText(timeText, timerX, 20, 32, WHITE);
 }
 
 // Desenho
@@ -1785,6 +1816,12 @@ void DrawGame(void) {
     // ➤ TELA DE DERROTA
     // =======================================================
     if (current_game_state == GAME_OVER) {
+        // Salva tempo no ranking uma vez quando o jogo entra em GAME_OVER
+        if (!rankingSaved) {
+            Ranking_Add(gameTimer, playerName);
+            Ranking_Save();
+            rankingSaved = true;
+        }
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.8f)); 
         const char *message = "VOCÊ PERDEU! A TORRE FOI DESTRUÍDA.";
         int message_len = MeasureText(message, 40);
@@ -1796,7 +1833,7 @@ void DrawGame(void) {
         DrawText("MENU PRINCIPAL", botaoMenu.x + 15, botaoMenu.y + 15, 20, WHITE);
         
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), botaoMenu)) {
-             current_game_state = MENU;
+               current_game_state = MENU;
         }
 
     }
@@ -1805,6 +1842,12 @@ void DrawGame(void) {
     // ➤ TELA DE VITÓRIA (CORRIGIDA PARA FASES)
     // =======================================================
     else if (current_game_state == WAVE_WON) {
+        // Se vencer uma wave, também salvar o tempo (útil se quiser registrar progresso)
+        if (!rankingSaved) {
+            Ranking_Add(gameTimer, playerName);
+            Ranking_Save();
+            rankingSaved = true;
+        }
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(DARKGREEN, 0.8f));
         
         const char *message;
@@ -1895,6 +1938,9 @@ void ResetGame(void)
  
     // Voltar ao gameplay
     current_game_state = PLAYING;
+    // Reset timer and ranking state for the new run
+    gameTimer = 0.0;
+    rankingSaved = false;
 }
 
 // Finalização
@@ -1908,4 +1954,14 @@ void CloseGame(void) {
   for (int i = 0; i < MAX_HEROIS; i++) {
     UnloadTexture(herois[i].texture);
   }
+
+    // Se o jogo estiver em andamento e ainda não salvamos, registra o tempo atual
+      if (!rankingSaved && current_game_state == PLAYING) {
+          Ranking_Add(gameTimer, playerName);
+            Ranking_Save();
+            rankingSaved = true;
+    }
+
+    // Liberar memória do ranking
+    Ranking_Free();
 }

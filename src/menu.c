@@ -1,7 +1,9 @@
 #include "raylib.h"
 #include "menu.h"
+#include "game.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // Função para redimensionar uma textura MANTENDO PROPORÇÃO
 Texture2D RedimensionarTextureMantendoProporcao(Texture2D textureOriginal, int novaLargura, int novaAltura) {
@@ -256,9 +258,9 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 fontSmall * 1.1f, 
                 WHITE);
 
-        EndDrawing();
+            EndDrawing();
+        }
     }
-}
 
 void ShowHowToPlayMenu() { 
     double t = GetTime();
@@ -498,6 +500,7 @@ void ShowRankingMenu() {
         EndDrawing();
     }
 }
+}
 
 // ============================================================================
 // =============================== MENU PRINCIPAL =============================
@@ -594,6 +597,48 @@ MenuOption ShowMenu() {
     
     printf("=== TODAS AS IMAGENS CARREGADAS ===\n");
 
+    // --- função local: prompt de nome integrado ao menu ---
+    void ShowNamePromptMenu(void) {
+        char buffer[64] = "";
+        int len = 0;
+        bool done = false;
+
+        while (!WindowShouldClose() && !done) {
+            int c = GetCharPressed();
+            while (c > 0) {
+                if (c >= 32 && c < 128 && len < (int)sizeof(buffer)-1) {
+                    buffer[len++] = (char)c; buffer[len] = '\0';
+                }
+                c = GetCharPressed();
+            }
+            if (IsKeyPressed(KEY_BACKSPACE)) { if (len>0) { len--; buffer[len]='\0'; } }
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) { done = true; }
+            if (IsKeyPressed(KEY_ESCAPE)) { buffer[0]='\0'; done = true; }
+
+            BeginDrawing();
+            // dim background
+            DrawRectangle(0,0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.6f));
+            const char *title = "DIGITE SEU NOME";
+            int tw = MeasureText(title, 28);
+            DrawText(title, GetScreenWidth()/2 - tw/2, 140, 28, GOLD);
+
+            int boxW=520, boxH=64;
+            int bx = GetScreenWidth()/2 - boxW/2;
+            int by = GetScreenHeight()/2 - boxH/2;
+            DrawRectangle(bx, by, boxW, boxH, LIGHTGRAY);
+            DrawRectangleLines(bx, by, boxW, boxH, DARKGRAY);
+            DrawText(buffer, bx+12, by+14, 28, BLACK);
+
+            DrawText("Enter confirmar, Esc = Anon", GetScreenWidth()/2 - 160, by + boxH + 12, 14, GRAY);
+            EndDrawing();
+        }
+
+        if (buffer[0] != '\0') {
+            strncpy(playerName, buffer, sizeof(playerName)-1);
+            playerName[sizeof(playerName)-1] = '\0';
+        }
+    }
+
     // ====================================================
     // LOOP PRINCIPAL DO MENU
     // ====================================================
@@ -634,6 +679,8 @@ MenuOption ShowMenu() {
                 CloseWindow();
                 exit(0);
             } else {
+                // Antes de iniciar, pedir nome (overlay)
+                ShowNamePromptMenu();
                 break;
             }
         }

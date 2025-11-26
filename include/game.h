@@ -94,5 +94,8 @@ void ReiniciarFase(void);
 void VoltarMenuPrincipal(void);
 void DrawPause(void);
 
+// Nome do jogador atual (preenchido antes de iniciar o jogo)
+extern char playerName[64];
+
 
 #endif // GAME_H

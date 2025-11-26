@@ -22,5 +22,7 @@ MenuOption ShowMenu();
 void ShowHeroesMenu(PersonagemInfo personagens[]);
 void ShowHowToPlayMenu();
 void ShowRankingMenu();  // Adicionado
+// Prompt de nome integrado ao menu. Copia resultado para `playerName` global.
+void ShowNamePromptMenu(void);
 
 #endif
