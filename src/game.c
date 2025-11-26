@@ -47,7 +47,15 @@ const int TOWER_ATTACK_DAMAGE = 30; // Dano por ataque
 
 // Spawn
 float spawnTimer;
+// Spawn base interval for normal phases
 static const float SPAWN_INTERVAL = 2.0f;
+// Phase 3 base and dynamic spawn controls
+static const float PHASE3_BASE_SPAWN = 1.5f; // starting interval for phase 3
+static const float PHASE3_MIN_SPAWN = 0.3f;  // fastest possible spawn interval
+// Decay rate used in exponential decay: spawn = base * exp(-rate * elapsed_seconds)
+static const float SPAWN_DECAY_RATE = 0.005f; // small -> slow and steady
+// Time when current phase started (used for per-phase acceleration)
+double phaseStartTime = 0.0;
 
 // Estado do jogo
 GameState current_game_state;
@@ -114,7 +122,6 @@ const int WAVE_REWARD = 150;                   // Recompensa por wave
 // =======================
 // OUTRAS DEFINIÇÕES
 // =======================
-#define MAX_ENEMIES 20
 #define ENEMY_ATTACK_RANGE 75.0f // Alcance de ataque dos inimigos (pixels)
 #define ENEMY_ATTACK_INTERVAL 1.5f // Intervalo de ataque do inimigo (segundos)
 
@@ -659,6 +666,8 @@ void VerificarCliqueUpgrades(void) {
 
 // 💰 Função para comprar herói específico
 int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
+  // Debug/logging: verificar estado ao tentar comprar
+  TraceLog(LOG_DEBUG, "TENTATIVA COMPRA: tipo=%d, wave=%d, moedas=%d, placed=%d, MAX_H=%d", tipoHeroi, currentWave, r->moedas, placedHeroCount, MAX_HEROIS);
   if (tipoHeroi >= 0 && tipoHeroi < MAX_HEROIS) {
         if (r->moedas >= herois[tipoHeroi].custo) {
             // Verifica se ainda cabe mais heróis antes de debitar moedas
@@ -671,10 +680,14 @@ int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
                 TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
                 return 1; // Compra realizada
             } else {
-                TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s.", herois[tipoHeroi].nome);
+                TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s. placedHeroCount=%d MAX_HEROIS=%d", herois[tipoHeroi].nome, placedHeroCount, MAX_HEROIS);
                 return 0; // Não há espaço para colocar
             }
+        } else {
+            TraceLog(LOG_WARNING, "Moedas insuficientes para comprar %s: custo=%d, moedas=%d", herois[tipoHeroi].nome, herois[tipoHeroi].custo, r->moedas);
         }
+  } else {
+      TraceLog(LOG_WARNING, "Tipo de heroi inválido: %d", tipoHeroi);
   }
   return 0; // Moedas insuficientes ou tipo inválido
 }
@@ -860,7 +873,8 @@ void IniciarFase2(void) {
     tower_burn_timer = 0.0f;
     current_game_state = PLAYING; 
 
-    placedHeroCount = 0;
+    // marca o tempo de início da fase para controle de spawn dinâmico
+    phaseStartTime = gameTimer;
     
     // Resetar status dos heróis
     for (int i = 0; i < MAX_HEROIS; i++) {
@@ -902,14 +916,13 @@ void IniciarFase3(void) {
     is_tower_burning = false;
     tower_burn_timer = 0.0f;
     current_game_state = PLAYING; 
-
-    placedHeroCount = 0;
+    //  FASE 3: NÃO reseta heróis colocados - eles continuam do jogo!
+    // placedHeroCount = 0;
 
     background = backgroundFase3;
     
-    // Resetar status dos heróis
-    for (int i = 0; i < MAX_HEROIS; i++) {
-        placedHeroes[i].health = 0;
+    // Resetar status dos heróis (apenas queimadura, não remove heróis)
+    for (int i = 0; i < placedHeroCount; i++) {
         placedHeroes[i].is_burning = false;
         placedHeroes[i].burn_timer = 0.0f;
     }
@@ -925,6 +938,8 @@ void IniciarFase3(void) {
     }
     
     TraceLog(LOG_INFO, "Recompensa de %d moedas concedida! Total: %d", WAVE_REWARD, gameRecursos.moedas);
+    // marca o tempo de início da fase para controle de spawn dinâmico
+    phaseStartTime = gameTimer;
 }
 // Inicialização
 void InitGame(void) {
@@ -1277,10 +1292,27 @@ void UpdateGame(void) {
          }
 
         // --- SPAWN DE INIMIGOS ---
-        // ⚠️ NOVO: Adiciona a verificação total_enemies_spawned < WAVE_SIZE[currentWave]
-        if (towerHealth > 0 && enemyCount < MAX_ENEMIES && total_enemies_spawned < WAVE_SIZE[currentWave]) { 
+        // Para fases 1 e 2: verifica limite de inimigos. Para fase 3: infinito
+        bool shouldSpawn = (towerHealth > 0 && enemyCount < MAX_ENEMIES);
+        if (currentWave < 3) {
+            shouldSpawn = shouldSpawn && (total_enemies_spawned < WAVE_SIZE[currentWave]);
+        }
+        // Fase 3: shouldSpawn permanece true enquanto torre está viva
+        
+        if (shouldSpawn) { 
             spawnTimer += dt;
-            if (spawnTimer >= SPAWN_INTERVAL) {
+                // Calcula intervalo de spawn dinâmico
+                float spawnInterval;
+                if (currentWave == 3) {
+                    // usar tempo desde o início da fase para acelerar devagar e sempre
+                    double elapsed = gameTimer - phaseStartTime;
+                    float decayFactor = expf(-SPAWN_DECAY_RATE * (float)elapsed);
+                    spawnInterval = PHASE3_BASE_SPAWN * decayFactor;
+                    if (spawnInterval < PHASE3_MIN_SPAWN) spawnInterval = PHASE3_MIN_SPAWN;
+                } else {
+                    spawnInterval = SPAWN_INTERVAL;
+                }
+                if (spawnTimer >= spawnInterval) {
                 int activeEnemies = 0;
                 for (int i = 0; i < MAX_ENEMIES; i++) {
                     if (enemies[i].active) activeEnemies++;
@@ -1311,8 +1343,10 @@ void UpdateGame(void) {
                         }
                     }
                     
-                    // 💰 NOVO: Incrementa a contagem de inimigos spawnados
-                    total_enemies_spawned++; 
+                    // 💰 NOVO: Incrementa a contagem de inimigos spawnados (apenas para fases 1 e 2)
+                    if (currentWave < 3) {
+                        total_enemies_spawned++;
+                    }
                     
                     enemies[enemyCount] = InitEnemy(startX, startY, newEnemyType);
                     enemies[enemyCount].pathIndex = pathIndex;
@@ -1574,7 +1608,8 @@ void UpdateGame(void) {
     // =========================================================
     // 🔹 7. CHECAR VITÓRIA
     // =========================================================
-    if (enemyCount >= MAX_ENEMIES &&
+    // Vitória apenas para fases 1 e 2. Fase 3: infinita, sem vitória, apenas GAME_OVER
+    if (currentWave < 3 && enemyCount >= MAX_ENEMIES &&
         enemies_defeated_count >= MAX_ENEMIES) {
 
         current_game_state = WAVE_WON;

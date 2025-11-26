@@ -11,7 +11,7 @@
 
 #define NUM_WAYPOINTS 84
 #define MAX_WAYPOINTS 84
-#define MAX_ENEMIES 20
+#define MAX_ENEMIES 40
 #define MAX_HEROIS 4
 
 // Texturas globais
