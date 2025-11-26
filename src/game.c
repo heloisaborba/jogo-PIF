@@ -1812,10 +1812,10 @@ void DrawGame(void) {
         
         // ⭐️ Lógica de Mensagem e Botão
         if (currentWave == 1) {
-            message = "ONDA 1 COMPLETA! IR PARA A FASE 2";
+            message = "IR PARA A FASE 2!";
             button_text = "INICIAR FASE 2";
         } else if (currentWave == 2) {
-            message = "ONDA 2 COMPLETA! IR PARA A FASE 3"; // ⬅️ MENSAGEM PARA FASE 3
+            message = "IR PARA A FASE 3!"; // ⬅️ MENSAGEM PARA FASE 3
             button_text = "INICIAR FASE 3";
         } else {
             message = "PARABÉNS! VOCÊ VENCEU O JOGO!";

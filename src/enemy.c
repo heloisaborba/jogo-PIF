@@ -85,12 +85,11 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
     enemy.x = x;
     enemy.y = y;
     enemy.currentWaypoint = 0;
-    
+
     // ⭐️ INICIALIZAÇÃO DO CAMINHO
-    // Por padrão começa no caminho inferior
     enemy.pathIndex = 0;
-    
-    // Configura estatísticas baseadas na tabela
+
+    // Estatísticas base
     enemy.damage = ENEMY_STATS[type].damage;
     enemy.speed = ENEMY_STATS[type].speed;
     enemy.maxHealth = ENEMY_STATS[type].maxHealth;
@@ -98,14 +97,33 @@ Enemy InitEnemy(float x, float y, EnemyType type) {
     enemy.recompensa_moedas = ENEMY_STATS[type].recompensa;
     enemy.range = ENEMY_STATS[type].range;
     enemy.resistance = ENEMY_STATS[type].resistance;
-    
-    // Inicializa status especiais
+
+    // ====== AUMENTO DE VELOCIDADE POR FASE ======
+    if (currentWave == 2) {
+        enemy.speed *= 1.35f;   // +35% mais rápido
+    }
+    else if (currentWave == 3) {
+        enemy.speed *= 1.85f;   // +75% mais rápido
+    }
+    // ============================================
+
+    // ====== AUMENTO DE DANO POR FASE ======
+    if (currentWave == 2) {
+        enemy.damage *= 1.40f;  // +40% dano
+    }
+    else if (currentWave == 3) {
+        enemy.damage *= 1.80f;  // +80% dano
+    }
+    // ======================================
+
+    // Status especiais
     enemy.is_burning = false;
     enemy.burning_timer = 0.0f;
     enemy.necromante_heal_timer = 0.0f;
-    
+
     return enemy;
 }
+
 
 void UpdateEnemy(Enemy *e) {
     if (!e->active) return;
