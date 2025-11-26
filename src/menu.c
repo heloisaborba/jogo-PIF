@@ -435,7 +435,7 @@ void ShowRankingMenu() {
         BeginDrawing();
         ClearBackground((Color){ 20, 15, 10, 255 });
 
-        // Fundo medieval
+        // Moldura medieval
         DrawRectangle(30, 30, sw - 60, sh - 60, (Color){ 45, 35, 25, 240 });
         DrawRectangleLinesEx((Rectangle){30, 30, sw - 60, sh - 60}, 4, (Color){180, 140, 80, 255});
 
@@ -499,7 +499,6 @@ void ShowRankingMenu() {
 
         EndDrawing();
     }
-}
 }
 
 // ============================================================================

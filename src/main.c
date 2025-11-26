@@ -87,8 +87,6 @@ const int screenHeight = 600;
 int main(void) {
     InitWindow(screenWidth, screenHeight, "Tower Defense Medieval");
     SetTargetFPS(60);
-    // Inicializa ranking a partir do arquivo (uma vez ao iniciar o programa)
-    Ranking_Init("ranking.txt");
 
     printf("DEBUG: Janela inicializada, entrando no loop principal\n");
 
