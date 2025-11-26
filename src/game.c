@@ -12,7 +12,7 @@
 #include <math.h>
 #include "ranking.h"
 
-const int WAVE_SIZE[] = {0, 15, 25, 40};
+const int WAVE_SIZE[] = {0, 15, 25, 99999}; // Fase 3 infinita (99999 = nunca atingido)
 
 // ==============================
 // TEXTURAS GLOBAIS DO JOGO
@@ -1368,8 +1368,8 @@ void UpdateGame(void) {
         // 🔹 7. LÓGICA DE TRANSIÇÃO DE ONDA / VITÓRIA (INSERIR AQUI) ⬅️
         // =========================================================
 
-        if (currentWave < MAX_WAVES) {
-            // Verifica se todos os inimigos previstos para a onda foram derrotados.
+        if (currentWave < MAX_WAVES && currentWave < 3) {
+            // Verifica se todos os inimigos previstos para a onda foram derrotados (Fase 1 e 2).
             if (enemies_defeated_count >= WAVE_SIZE[currentWave]) {
 
                 // Verifica se não há inimigos ativos restantes no mapa
@@ -1386,12 +1386,8 @@ void UpdateGame(void) {
                     current_game_state = WAVE_WON; 
                 }
             }
-        } else {
-            // Lógica de Vitória Final (se for a última onda)
-            if (enemies_defeated_count >= WAVE_SIZE[currentWave]) {
-                // ... (Verificação final e transição para GAME_OVER (Vitória))
-            }
         }
+        // Fase 3 é infinita: nenhuma verificação de WAVE_WON, apenas GAME_OVER quando torre morre
 
 
     // --- MOVIMENTO & ATAQUE DOS INIMIGOS ---
