@@ -12,7 +12,7 @@
 #define NUM_WAYPOINTS 84
 #define MAX_WAYPOINTS 84
 #define MAX_ENEMIES 40
-#define MAX_HEROIS 4
+#define HERO_TYPE_COUNT 4
 
 // Texturas globais
 extern Texture2D background;
@@ -69,6 +69,15 @@ typedef struct {
     bool is_burning;
     float burn_timer;
 } PlacedHero;
+
+// Heróis disponíveis e upgrades
+extern Heroi herois[HERO_TYPE_COUNT];
+extern HeroUpgrade heroUpgrades[HERO_TYPE_COUNT];
+
+// Heróis colocados (dinâmico)
+extern PlacedHero *placedHeroes;
+extern int placedHeroCount;
+extern int placedHeroCapacity;
 
 // Variáveis globais de estado
 extern int enemies_defeated_count;

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 #include "ranking.h"
 
 const int WAVE_SIZE[] = {0, 15, 25, 99999}; // Fase 3 infinita (99999 = nunca atingido)
@@ -64,16 +65,17 @@ int towerHealth;
 
 // Menu
 bool menuAberto;
-Heroi herois[MAX_HEROIS];
+Heroi herois[HERO_TYPE_COUNT];
 
-// Heróis colocados
-PlacedHero placedHeroes[MAX_HEROIS];
+// Heróis colocados (dinâmico)
+PlacedHero *placedHeroes = NULL;
 int placedHeroCount;
+int placedHeroCapacity = 0;
 bool placementMode;
 int selectedHeroType;
 
 // ✨ NOVO: Sistema de Upgrades
-HeroUpgrade heroUpgrades[MAX_HEROIS];
+HeroUpgrade heroUpgrades[HERO_TYPE_COUNT];
 bool menuUpgradesAberto = false;
 int selectedUpgradeHero = 0; // Índice do herói selecionado para upgrade
 
@@ -126,6 +128,27 @@ const int WAVE_REWARD = 150;                   // Recompensa por wave
 #define ENEMY_ATTACK_INTERVAL 1.5f // Intervalo de ataque do inimigo (segundos)
 
 void ResetGame();
+
+// Ensure placedHeroes has capacity for at least minNeeded elements
+static void EnsurePlacedCapacity(int minNeeded) {
+    if (placedHeroCapacity >= minNeeded) return;
+    int newCap = placedHeroCapacity > 0 ? placedHeroCapacity * 2 : 8;
+    while (newCap < minNeeded) newCap *= 2;
+    PlacedHero *newArr = (PlacedHero*)realloc(placedHeroes, newCap * sizeof(PlacedHero));
+    if (!newArr) {
+        TraceLog(LOG_ERROR, "Falha ao alocar memória para placedHeroes (need=%d)", minNeeded);
+        return;
+    }
+    // Initialize newly allocated slots
+    for (int i = placedHeroCapacity; i < newCap; i++) {
+        newArr[i].health = 0;
+        newArr[i].is_burning = false;
+        newArr[i].burn_timer = 0.0f;
+        newArr[i].lastAttackTime = 0.0f;
+    }
+    placedHeroes = newArr;
+    placedHeroCapacity = newCap;
+}
 
 // ⭐️ NOVO: Função para obter um tipo de inimigo com base na frequência
 int GetRandomEnemyType() {
@@ -380,8 +403,8 @@ void InicializarHerois(void) {
   herois[3].alcance = 140;
   herois[3].texture = LoadTexture("resources/SapoMago.png");
   
-  // ✨ NOVO: Inicializar upgrades para cada herói
-  for (int i = 0; i < MAX_HEROIS; i++) {
+    // ✨ NOVO: Inicializar upgrades para cada herói
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
     heroUpgrades[i].nivel_vida = 0;
     heroUpgrades[i].nivel_dano = 0;
     heroUpgrades[i].nivel_velocidade = 0;
@@ -393,7 +416,7 @@ void InicializarHerois(void) {
 
 // 💰 Função para comprar upgrade de herói
 int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
-  if (tipoHeroi < 0 || tipoHeroi >= MAX_HEROIS) return 0;
+    if (tipoHeroi < 0 || tipoHeroi >= HERO_TYPE_COUNT) return 0;
   
   int custoupgrade = 0;
   int nivelAtual = 0;
@@ -493,7 +516,7 @@ void DrawMenuUpgrades(void) {
     int startY = 140;
 
     // Desenhar seletores de herói
-    for (int i = 0; i < MAX_HEROIS; i++) {
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
         int cardX = startX + i * (cardWidth + spacing);
         int cardY = startY;
 
@@ -527,7 +550,7 @@ void DrawMenuUpgrades(void) {
     DrawRectangleLines(upgradeX, upgradeY, upgradeBoxWidth, upgradeBoxHeight, GOLD);
 
     // Verificar se nenhum herói foi selecionado
-    if (selectedUpgradeHero < 0 || selectedUpgradeHero >= MAX_HEROIS) {
+    if (selectedUpgradeHero < 0 || selectedUpgradeHero >= HERO_TYPE_COUNT) {
         // Mensagem pedindo para selecionar um herói
         const char *msg = "Clique em um heroi acima para escolher qual evoluir!";
         int msgWidth = MeasureText(msg, 20);
@@ -624,7 +647,7 @@ void VerificarCliqueUpgrades(void) {
     int startX = 60;
     int startY = 140;
 
-    for (int i = 0; i < MAX_HEROIS; i++) {
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
         int cardX = startX + i * (cardWidth + spacing);
         int cardY = startY;
 
@@ -667,22 +690,16 @@ void VerificarCliqueUpgrades(void) {
 // 💰 Função para comprar herói específico
 int ComprarHeroiEspecifico(recursos *r, int tipoHeroi) {
   // Debug/logging: verificar estado ao tentar comprar
-  TraceLog(LOG_DEBUG, "TENTATIVA COMPRA: tipo=%d, wave=%d, moedas=%d, placed=%d, MAX_H=%d", tipoHeroi, currentWave, r->moedas, placedHeroCount, MAX_HEROIS);
-  if (tipoHeroi >= 0 && tipoHeroi < MAX_HEROIS) {
+  TraceLog(LOG_DEBUG, "TENTATIVA COMPRA: tipo=%d, wave=%d, moedas=%d, placed=%d, HERO_TYPES=%d", tipoHeroi, currentWave, r->moedas, placedHeroCount, HERO_TYPE_COUNT);
+  if (tipoHeroi >= 0 && tipoHeroi < HERO_TYPE_COUNT) {
         if (r->moedas >= herois[tipoHeroi].custo) {
-            // Verifica se ainda cabe mais heróis antes de debitar moedas
-            if (placedHeroCount < MAX_HEROIS) {
-                r->moedas -= herois[tipoHeroi].custo;
-                // Entrar no modo de colocação
-                placementMode = true;
-                selectedHeroType = tipoHeroi;
-                menuAberto = false; // Fecha o menu
-                TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
-                return 1; // Compra realizada
-            } else {
-                TraceLog(LOG_WARNING, "Limite de heróis atingido! Não foi possível comprar %s. placedHeroCount=%d MAX_HEROIS=%d", herois[tipoHeroi].nome, placedHeroCount, MAX_HEROIS);
-                return 0; // Não há espaço para colocar
-            }
+            // Debita moedas e entra no modo de colocação (sem limite de quantidade)
+            r->moedas -= herois[tipoHeroi].custo;
+            placementMode = true;
+            selectedHeroType = tipoHeroi;
+            menuAberto = false; // Fecha o menu
+            TraceLog(LOG_INFO, "%s comprado! Clique no mapa para colocar. Moedas restantes: %d", herois[tipoHeroi].nome, r->moedas);
+            return 1; // Compra realizada
         } else {
             TraceLog(LOG_WARNING, "Moedas insuficientes para comprar %s: custo=%d, moedas=%d", herois[tipoHeroi].nome, herois[tipoHeroi].custo, r->moedas);
         }
@@ -712,10 +729,10 @@ void DrawMenuHerois(void) {
     int cardHeight = 320;
 
     int spacing = 30;
-    int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
+    int startX = (screenWidth - (HERO_TYPE_COUNT * cardWidth + (HERO_TYPE_COUNT - 1) * spacing)) / 2;
     int startY = 180;
 
-    for (int i = 0; i < MAX_HEROIS; i++) {
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
         int cardX = startX + i * (cardWidth + spacing);
         int cardY = startY;
 
@@ -816,12 +833,12 @@ void VerificarCliqueMenu(void) {
     int cardWidth = 160;
     int cardHeight = 320;
     int spacing = 30;
-    int startX = (screenWidth - (MAX_HEROIS * cardWidth + (MAX_HEROIS - 1) * spacing)) / 2;
+    int startX = (screenWidth - (HERO_TYPE_COUNT * cardWidth + (HERO_TYPE_COUNT - 1) * spacing)) / 2;
     int startY = 180;
 
     if (!mouseReleased) return;
 
-    for (int i = 0; i < MAX_HEROIS; i++) {
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
         int cardX = startX + i * (cardWidth + spacing);
         int cardY = startY;
 
@@ -876,8 +893,8 @@ void IniciarFase2(void) {
     // marca o tempo de início da fase para controle de spawn dinâmico
     phaseStartTime = gameTimer;
     
-    // Resetar status dos heróis
-    for (int i = 0; i < MAX_HEROIS; i++) {
+    // Resetar status dos heróis (aplica apenas aos heróis colocados)
+    for (int i = 0; i < placedHeroCount; i++) {
         placedHeroes[i].health = 0;
         placedHeroes[i].is_burning = false;
         placedHeroes[i].burn_timer = 0.0f;
@@ -917,15 +934,14 @@ void IniciarFase3(void) {
     tower_burn_timer = 0.0f;
     current_game_state = PLAYING; 
     //  FASE 3: NÃO reseta heróis colocados - eles continuam do jogo!
-    // placedHeroCount = 0;
-
     background = backgroundFase3;
-    
-    // Resetar status dos heróis (apenas queimadura, não remove heróis)
-    for (int i = 0; i < placedHeroCount; i++) {
-        placedHeroes[i].is_burning = false;
-        placedHeroes[i].burn_timer = 0.0f;
+    // Remover quaisquer heróis colocados antes de iniciar a Fase 3
+    if (placedHeroes) {
+        free(placedHeroes);
+        placedHeroes = NULL;
     }
+    placedHeroCount = 0;
+    placedHeroCapacity = 0;
 
     // 5. Resetar variáveis de spawn e inimigos
     spawnTimer = 0.0f; 
@@ -1180,6 +1196,8 @@ void UpdateGame(void) {
             if (x + halfSize > GetScreenWidth()) x = GetScreenWidth() - halfSize;
             if (y + halfSize > GetScreenHeight()) y = GetScreenHeight() - halfSize;
 
+            // Assegura espaço para o novo herói e preenche a struct PlacedHero
+            EnsurePlacedCapacity(placedHeroCount + 1);
             // Preenche a struct PlacedHero com as estatísticas do herói
             placedHeroes[placedHeroCount].x = x;
             placedHeroes[placedHeroCount].y = y;
@@ -1292,9 +1310,11 @@ void UpdateGame(void) {
          }
 
         // --- SPAWN DE INIMIGOS ---
-        // Para fases 1 e 2: verifica limite de inimigos. Para fase 3: infinito
-        bool shouldSpawn = (towerHealth > 0 && enemyCount < MAX_ENEMIES);
+        // Para fases 1 e 2: verifica limite de inimigos e tamanho da wave.
+        // Para fase 3: continuar spawn enquanto a torre estiver viva (parar apenas quando torre destruída).
+        bool shouldSpawn = (towerHealth > 0);
         if (currentWave < 3) {
+            // Em fases normais ainda respeitamos o limite de wave e o limite de slots
             shouldSpawn = shouldSpawn && (total_enemies_spawned < WAVE_SIZE[currentWave]);
         }
         // Fase 3: shouldSpawn permanece true enquanto torre está viva
@@ -1945,16 +1965,12 @@ void ResetGame(void)
         enemyTargetHero[i] = -1;
     }
 
-    // Resetar heróis colocados
+    // Resetar heróis colocados: free dynamic array and reset counters
     placedHeroCount = 0;
-
-    for (int i = 0; i < MAX_HEROIS; i++) {
-        placedHeroes[i].health = 0;
-        placedHeroes[i].x = 0;
-        placedHeroes[i].y = 0;
-        placedHeroes[i].tipo = -1;
-        placedHeroes[i].is_burning = false;
-        placedHeroes[i].burn_timer = 0.0f;
+    if (placedHeroes) {
+        free(placedHeroes);
+        placedHeroes = NULL;
+        placedHeroCapacity = 0;
     }
 
     // Resetar recursos
@@ -1982,9 +1998,9 @@ void CloseGame(void) {
   UnloadTexture(towerTexture);
   
   // 💰 Descarrega texturas dos heróis
-  for (int i = 0; i < MAX_HEROIS; i++) {
-    UnloadTexture(herois[i].texture);
-  }
+    for (int i = 0; i < HERO_TYPE_COUNT; i++) {
+        UnloadTexture(herois[i].texture);
+    }
 
     // Se o jogo estiver em andamento e ainda não salvamos, registra o tempo atual
       if (!rankingSaved && current_game_state == PLAYING) {
