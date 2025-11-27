@@ -1,5 +1,6 @@
 // ranking.c
 #include "ranking.h"
+#include "raylib.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +31,7 @@ static void insert_sorted(ScoreNode *node) {
         return;
     }
     ScoreNode *cur = head;
+    // Percorre até achar o nó cuja pontuação é menor ou até o fim da lista
     while (cur->next && cur->next->timeSeconds > node->timeSeconds) cur = cur->next;
     node->next = cur->next;
     cur->next = node;
@@ -45,16 +47,46 @@ void Ranking_Init(const char *filename) {
     // load file if exists
     FILE *f = fopen(ranking_filename, "r");
     if (!f) return;
-    char line[256];
+    char line[512];
     while (fgets(line, sizeof(line), f)) {
+        // Expect a line like: <time> <name (may contain spaces)> <when>
+        // where <when> has no spaces (we use strftime with underscore)
         double t = 0.0;
-        char name[64] = "";
-        char when[32] = "";
-        // File format: <time> <name> <when>
-        if (sscanf(line, "%lf %63s %31s", &t, name, when) >= 1) {
-            ScoreNode *n = create_node(t, name, when);
-            insert_sorted(n);
+        // parse leading time
+        if (sscanf(line, "%lf", &t) != 1) continue;
+
+        // find first space after time
+        char *firstSpace = strchr(line, ' ');
+        if (!firstSpace) continue;
+
+        // find last space (before the timestamp)
+        char *lastSpace = strrchr(line, ' ');
+        if (!lastSpace || lastSpace == firstSpace) continue;
+
+        // extract name between firstSpace+1 and lastSpace-1
+        size_t nameLen = (size_t)(lastSpace - (firstSpace + 1));
+        char nameBuf[64] = "";
+        if (nameLen > 0) {
+            if (nameLen >= sizeof(nameBuf)) nameLen = sizeof(nameBuf) - 1;
+            memcpy(nameBuf, firstSpace + 1, nameLen);
+            nameBuf[nameLen] = '\0';
+            // trim trailing spaces
+            while (nameLen > 0 && nameBuf[nameLen-1] == ' ') { nameBuf[nameLen-1] = '\0'; nameLen--; }
         }
+
+        // extract when (timestamp) from lastSpace+1 up to newline
+        char whenBuf[32] = "";
+        size_t whenLen = strlen(lastSpace + 1);
+        // remove trailing newline or spaces
+        while (whenLen > 0 && (lastSpace[1 + whenLen - 1] == '\n' || lastSpace[1 + whenLen - 1] == '\r' || lastSpace[1 + whenLen - 1] == ' ')) whenLen--;
+        if (whenLen > 0) {
+            if (whenLen >= sizeof(whenBuf)) whenLen = sizeof(whenBuf) - 1;
+            memcpy(whenBuf, lastSpace + 1, whenLen);
+            whenBuf[whenLen] = '\0';
+        }
+
+        ScoreNode *n = create_node(t, nameBuf, whenBuf);
+        insert_sorted(n);
     }
     fclose(f);
 }
@@ -96,7 +128,18 @@ ScoreNode *Ranking_GetHead(void) {
 }
 
 void Ranking_Draw(int x, int y, int topN) {
-    // This function is intentionally left minimal because drawing needs raylib.
-    // The game will call Ranking_GetHead() and draw entries from there using DrawText.
-    (void)x; (void)y; (void)topN;
+    if (topN <= 0) return;
+    ScoreNode *cur = head;
+    int idx = 1;
+    int lineHeight = 28;
+    int drawY = y;
+    while (cur && idx <= topN) {
+        char line[256];
+        // Format: 1. Name - 123.45 s
+        snprintf(line, sizeof(line), "%d. %s - %.2f s", idx, cur->name, cur->timeSeconds);
+        DrawText(line, x, drawY, 22, RAYWHITE);
+        drawY += lineHeight;
+        cur = cur->next;
+        idx++;
+    }
 }

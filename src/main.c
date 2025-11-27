@@ -163,20 +163,17 @@ int main(void) {
 
                 DrawText("RANKING", GetScreenWidth()/2 - MeasureText("RANKING", 30)/2, 120, 30, RAYWHITE);
 
-                // Desenha top 5 do ranking carregado
-                ScoreNode *cur = Ranking_GetHead();
-                int y = 170;
-                int idx = 1;
-                while (cur && idx <= 5) {
-                    char line[256];
-                    sprintf(line, "%d. %s - %.2f s", idx, cur->name, cur->timeSeconds);
-                    DrawText(line, GetScreenWidth()/2 - MeasureText(line, 20)/2, y, 20, RAYWHITE);
-                    y += 30;
-                    cur = cur->next;
-                    idx++;
-                }
+                // Desenha top 5 do ranking carregado (centralizado)
+                int topN = 5;
+                int startY = 170;
+                // Compute an X position that centers the widest expected text area
+                // We use a fixed width offset to center the block rather than measuring each line.
+                int blockWidth = 400;
+                int x = GetScreenWidth()/2 - blockWidth/2;
+                Ranking_Draw(x, startY, topN);
 
-                DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, y + 10, 18, YELLOW);
+                int escY = startY + topN * 30 + 10;
+                DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, escY, 18, YELLOW);
 
                 EndDrawing();
 

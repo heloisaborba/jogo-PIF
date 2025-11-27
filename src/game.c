@@ -2006,6 +2006,13 @@ void DrawGame(void) {
                current_game_state = MENU;
         }
 
+         // Mostrar top do ranking (nomes salvos) abaixo dos botões
+         int topN = 5;
+         int rankingStartY = GetScreenHeight()/2 + 120;
+         int blockWidth = 400;
+         int rankingX = GetScreenWidth()/2 - blockWidth/2;
+         Ranking_Draw(rankingX, rankingStartY, topN);
+
     }
 
     // =======================================================
