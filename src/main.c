@@ -5,6 +5,7 @@
 #include "tower.h"
 #include "menu.h"
 #include "game.h" // Contém GameState e current_game_state
+#include "ranking.h"
 #include <stdio.h> // Para printf
 #include <string.h>
 
@@ -88,6 +89,9 @@ int main(void) {
     InitWindow(screenWidth, screenHeight, "Tower Defense Medieval");
     SetTargetFPS(60);
 
+    // Inicializa ranking a partir do arquivo
+    Ranking_Init("ranking.txt");
+
     printf("DEBUG: Janela inicializada, entrando no loop principal\n");
 
     while (!WindowShouldClose()) {
@@ -156,10 +160,24 @@ int main(void) {
             while (!WindowShouldClose()) {
                 BeginDrawing();
                 ClearBackground(DARKPURPLE);
-                DrawText("RANKING", 320, 200, 30, RAYWHITE);
-                DrawText("1. Player A - 5000", 300, 250, 20, RAYWHITE);
-                DrawText("2. Player B - 3500", 300, 280, 20, RAYWHITE);
-                DrawText("Press ESC to return", 300, 330, 20, YELLOW);
+
+                DrawText("RANKING", GetScreenWidth()/2 - MeasureText("RANKING", 30)/2, 120, 30, RAYWHITE);
+
+                // Desenha top 5 do ranking carregado
+                ScoreNode *cur = Ranking_GetHead();
+                int y = 170;
+                int idx = 1;
+                while (cur && idx <= 5) {
+                    char line[256];
+                    sprintf(line, "%d. %s - %.2f s", idx, cur->name, cur->timeSeconds);
+                    DrawText(line, GetScreenWidth()/2 - MeasureText(line, 20)/2, y, 20, RAYWHITE);
+                    y += 30;
+                    cur = cur->next;
+                    idx++;
+                }
+
+                DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, y + 10, 18, YELLOW);
+
                 EndDrawing();
 
                 if (IsKeyPressed(KEY_ESCAPE)) {
@@ -178,6 +196,8 @@ int main(void) {
     }
 
     printf("DEBUG: Fechando janela...\n");
+    // Liberar memória do ranking antes de sair
+    Ranking_Free();
     CloseWindow();
     return 0;
 }

@@ -74,6 +74,101 @@ int placedHeroCapacity = 0;
 bool placementMode;
 int selectedHeroType;
 
+// ======================
+// Heatmap (mapa de calor) — implementação usando matriz 2D
+// ======================
+// Cada célula mede a frequência de presença/colisão de inimigos
+static int heatmapCellSize = 24; // pixels por célula (ajustável)
+static int heatmapCols = 0;
+static int heatmapRows = 0;
+static int **heatmap = NULL; // matriz [rows][cols]
+static bool showHeatmap = false; // toggle para mostrar mapa de calor
+
+static void InitHeatmap(void) {
+    int w = GetScreenWidth();
+    int h = GetScreenHeight();
+    heatmapCols = (w + heatmapCellSize - 1) / heatmapCellSize;
+    heatmapRows = (h + heatmapCellSize - 1) / heatmapCellSize;
+
+    // aloca vetor de ponteiros para cada linha
+    heatmap = (int**)calloc((size_t)heatmapRows, sizeof(int*));
+    if (!heatmap) return;
+    for (int r = 0; r < heatmapRows; r++) {
+        heatmap[r] = (int*)calloc((size_t)heatmapCols, sizeof(int));
+        if (!heatmap[r]) {
+            // libera linhas já alocadas em falha
+            for (int k = 0; k < r; k++) free(heatmap[k]);
+            free(heatmap);
+            heatmap = NULL;
+            heatmapCols = heatmapRows = 0;
+            return;
+        }
+    }
+}
+
+static void FreeHeatmap(void) {
+    if (!heatmap) return;
+    for (int r = 0; r < heatmapRows; r++) {
+        if (heatmap[r]) free(heatmap[r]);
+    }
+    free(heatmap);
+    heatmap = NULL;
+    heatmapCols = heatmapRows = 0;
+}
+
+static void ResetHeatmap(void) {
+    if (!heatmap) return;
+    for (int r = 0; r < heatmapRows; r++) {
+        for (int c = 0; c < heatmapCols; c++) {
+            heatmap[r][c] = 0;
+        }
+    }
+}
+
+static void HeatmapIncrementAt(float x, float y) {
+    if (!heatmap) return;
+    int col = (int)(x) / heatmapCellSize;
+    int row = (int)(y) / heatmapCellSize;
+    if (col < 0) {
+        col = 0;
+    }
+    if (col >= heatmapCols) {
+        col = heatmapCols - 1;
+    }
+    if (row < 0) {
+        row = 0;
+    }
+    if (row >= heatmapRows) {
+        row = heatmapRows - 1;
+    }
+    heatmap[row][col]++;
+}
+
+static void DrawHeatmap(void) {
+    if (!heatmap || !showHeatmap) return;
+    // calcula max para normalizar
+    int maxv = 0;
+    for (int r = 0; r < heatmapRows; r++) {
+        for (int c = 0; c < heatmapCols; c++) {
+            if (heatmap[r][c] > maxv) maxv = heatmap[r][c];
+        }
+    }
+    if (maxv == 0) return; // nada a desenhar
+
+    for (int r = 0; r < heatmapRows; r++) {
+        for (int c = 0; c < heatmapCols; c++) {
+            int v = heatmap[r][c];
+            if (v <= 0) continue;
+            float t = (float)v / (float)maxv; // 0..1
+            float tn = fminf(fmaxf(t, 0.0f), 1.0f);
+            unsigned char alpha = (unsigned char)(tn * 180.0f);
+            unsigned char red = (unsigned char)(200 + 55 * tn);
+            unsigned char green = (unsigned char)(50 * (1.0f - tn));
+            Rectangle rc = { (float)(c * heatmapCellSize), (float)(r * heatmapCellSize), (float)heatmapCellSize, (float)heatmapCellSize };
+            DrawRectangleRec(rc, (Color){ red, green, 0, alpha });
+        }
+    }
+}
 // ✨ NOVO: Sistema de Upgrades
 HeroUpgrade heroUpgrades[HERO_TYPE_COUNT];
 bool menuUpgradesAberto = false;
@@ -467,9 +562,11 @@ int ComprarUpgradeHeroi(recursos *r, int tipoHeroi, int tipoUpgrade) {
   int new_dano_total = heroUpgrades[tipoHeroi].dano_total;
   float new_vel_mult = heroUpgrades[tipoHeroi].velocidade_mult;
 
-  int diffVida = new_vida_total - prev_vida_total;
-  int diffDano = new_dano_total - prev_dano_total;
-  float diffVel = new_vel_mult - prev_vel_mult;
+    int diffVida = new_vida_total - prev_vida_total;
+    (void)new_dano_total; // evitam warnings se não usados
+    (void)prev_dano_total;
+    (void)new_vel_mult;
+    (void)prev_vel_mult;
 
   for (int i = 0; i < placedHeroCount; i++) {
       if (placedHeroes[i].tipo != tipoHeroi) continue;
@@ -892,6 +989,8 @@ void IniciarFase2(void) {
 
     // marca o tempo de início da fase para controle de spawn dinâmico
     phaseStartTime = gameTimer;
+    // Limpa heatmap ao iniciar nova fase
+    ResetHeatmap();
     
     // Resetar status dos heróis (aplica apenas aos heróis colocados)
     for (int i = 0; i < placedHeroCount; i++) {
@@ -956,6 +1055,8 @@ void IniciarFase3(void) {
     TraceLog(LOG_INFO, "Recompensa de %d moedas concedida! Total: %d", WAVE_REWARD, gameRecursos.moedas);
     // marca o tempo de início da fase para controle de spawn dinâmico
     phaseStartTime = gameTimer;
+    // Limpa heatmap ao iniciar fase 3
+    ResetHeatmap();
 }
 // Inicialização
 void InitGame(void) {
@@ -1020,6 +1121,8 @@ void InitGame(void) {
     
     // Inicializa o gerador de números aleatórios para o spawn
     SetRandomSeed(GetTime()); 
+    // Inicializa heatmap
+    InitHeatmap();
 }
 
 
@@ -1089,6 +1192,12 @@ void UpdateGame(void) {
         selectedHeroToSell = -1;
         TraceLog(LOG_INFO, "Modo de venda: %s", sellMode ? "ATIVADO" : "DESATIVADO");
         return;
+    }
+
+    // Toggle do Heatmap (T)
+    if (IsKeyPressed(KEY_T)) {
+        showHeatmap = !showHeatmap;
+        TraceLog(LOG_INFO, "Heatmap: %s", showHeatmap ? "ON" : "OFF");
     }
 
     // =========================================================
@@ -1519,6 +1628,13 @@ void UpdateGame(void) {
         }
     }
 
+    // Atualiza heatmap com posições dos inimigos ativos (uma amostra por frame)
+    if (heatmap) {
+        for (int _hi = 0; _hi < enemyCount; _hi++) {
+            if (enemies[_hi].active) HeatmapIncrementAt(enemies[_hi].x, enemies[_hi].y);
+        }
+    }
+
     // --- ATAQUE DA TORRE CONTRA INIMIGOS ---
     tower_attack_timer += dt;
     if (tower_attack_timer >= TOWER_ATTACK_INTERVAL) {
@@ -1702,6 +1818,9 @@ void DrawGame(void) {
         0.0f, 
         WHITE 
     );
+
+    // Heatmap de presença/colisões (debug) - desenha sobre o background
+    DrawHeatmap();
 
     // =======================================================
     // ➤ TELA DE PAUSA
@@ -1973,6 +2092,9 @@ void ResetGame(void)
         placedHeroCapacity = 0;
     }
 
+    // Limpa heatmap também
+    ResetHeatmap();
+
     // Resetar recursos
     inicializar_recursos(&gameRecursos);
 
@@ -2001,6 +2123,9 @@ void CloseGame(void) {
     for (int i = 0; i < HERO_TYPE_COUNT; i++) {
         UnloadTexture(herois[i].texture);
     }
+
+        // Liberar heatmap
+        FreeHeatmap();
 
     // Se o jogo estiver em andamento e ainda não salvamos, registra o tempo atual
       if (!rankingSaved && current_game_state == PLAYING) {
