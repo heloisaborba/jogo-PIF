@@ -7,7 +7,7 @@ typedef enum {
     MENU_START,
     MENU_HEROES,
     MENU_HOW_TO_PLAY,
-    MENU_RANKING,  // Mantido
+    MENU_RANKING,  
     MENU_EXIT,
     MENU_TOTAL
 } MenuOption;
@@ -21,8 +21,7 @@ typedef struct {
 MenuOption ShowMenu();
 void ShowHeroesMenu(PersonagemInfo personagens[]);
 void ShowHowToPlayMenu();
-void ShowRankingMenu();  // Adicionado
-// Prompt de nome integrado ao menu. Copia resultado para `playerName` global.
+void ShowRankingMenu();  
 void ShowNamePromptMenu(void);
 
 #endif

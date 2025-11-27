@@ -1,4 +1,4 @@
-// game.h (VERSÃO CORRIGIDA)
+
 
 #ifndef GAME_H
 #define GAME_H
@@ -14,20 +14,17 @@
 #define MAX_ENEMIES 40
 #define HERO_TYPE_COUNT 4
 
-// Texturas globais
 extern Texture2D background;
 extern Texture2D backgroundFase2;
 extern Texture2D backgroundFase3;
 extern Texture2D towerTexture;
 
-// Caminhos dos inimigos
 extern Vector2 pathInferior[];
 extern Vector2 pathSuperior[];
 extern int currentWave;
 extern int NUM_WAYPOINTS_BAIXO;
 extern int NUM_WAYPOINTS_CIMA;
 
-// GameState
 typedef enum {
     MENU,
     PLAYING,
@@ -38,7 +35,6 @@ typedef enum {
 
 extern GameState current_game_state;
 
-// Estrutura para heróis
 typedef struct {
     char nome[20];
     int custo;
@@ -47,7 +43,6 @@ typedef struct {
     Texture2D texture;
 } Heroi;
 
-// Estrutura para upgrades de herói
 typedef struct {
     int nivel_vida;
     int nivel_dano;
@@ -57,7 +52,6 @@ typedef struct {
     float velocidade_mult;
 } HeroUpgrade;
 
-// Estrutura para heróis colocados no mapa
 typedef struct {
     float x, y;
     int tipo;
@@ -70,23 +64,18 @@ typedef struct {
     float burn_timer;
 } PlacedHero;
 
-// Heróis disponíveis e upgrades
 extern Heroi herois[HERO_TYPE_COUNT];
 extern HeroUpgrade heroUpgrades[HERO_TYPE_COUNT];
 
-// Heróis colocados (dinâmico)
 extern PlacedHero *placedHeroes;
 extern int placedHeroCount;
 extern int placedHeroCapacity;
 
-// Variáveis globais de estado
 extern int enemies_defeated_count;
 extern int towerHealth;
 
-// Nome do jogador atual
 extern char playerName[64];
 
-// Declarações das funções do jogo
 void IniciarFase2(void);
 void IniciarFase3(void);
 void InitGame(void);
@@ -103,4 +92,4 @@ void ReiniciarFase(void);
 void VoltarMenuPrincipal(void);
 void DrawPause(void);
 
-#endif // GAME_H
+#endif 

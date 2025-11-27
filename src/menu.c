@@ -5,22 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Função para redimensionar uma textura MANTENDO PROPORÇÃO
 Texture2D RedimensionarTextureMantendoProporcao(Texture2D textureOriginal, int novaLargura, int novaAltura) {
     Image imagemOriginal = LoadImageFromTexture(textureOriginal);
     
-    // Calcular novas dimensões mantendo proporção
     float ratioOriginal = (float)imagemOriginal.width / imagemOriginal.height;
     float ratioNova = (float)novaLargura / novaAltura;
     
     int larguraFinal, alturaFinal;
     
     if (ratioOriginal > ratioNova) {
-        // Largura é o fator limitante
         larguraFinal = novaLargura;
         alturaFinal = novaLargura / ratioOriginal;
     } else {
-        // Altura é o fator limitante
         alturaFinal = novaAltura;
         larguraFinal = novaAltura * ratioOriginal;
     }
@@ -32,15 +28,13 @@ Texture2D RedimensionarTextureMantendoProporcao(Texture2D textureOriginal, int n
     return textureRedimensionada;
 }
 
-// Função para redimensionar uma textura FORÇANDO DIMENSÕES (preenche o espaço)
 Texture2D RedimensionarTexture(Texture2D textureOriginal, int novaLargura, int novaAltura) {
-    // Criar uma render texture temporária
+    
     RenderTexture2D target = LoadRenderTexture(novaLargura, novaAltura);
     
     BeginTextureMode(target);
     ClearBackground(BLANK);
     
-    // Calcular escala para preencher a nova área mantendo proporção
     float escalaX = (float)novaLargura / textureOriginal.width;
     float escalaY = (float)novaAltura / textureOriginal.height;
     float escala = (escalaX < escalaY) ? escalaX : escalaY;
@@ -54,16 +48,13 @@ Texture2D RedimensionarTexture(Texture2D textureOriginal, int novaLargura, int n
     
     EndTextureMode();
     
-    // Obter a textura redimensionada
     Texture2D textureRedimensionada = target.texture;
-    
-    // CORREÇÃO: Carregar a imagem e inverter verticalmente para corrigir orientação
+
     Image imagemRedimensionada = LoadImageFromTexture(textureRedimensionada);
-    ImageFlipVertical(&imagemRedimensionada); // CORREÇÃO AQUI - resolve o problema de cabeça para baixo
+    ImageFlipVertical(&imagemRedimensionada); 
     
     Texture2D textureFinal = LoadTextureFromImage(imagemRedimensionada);
     
-    // Limpar recursos temporários
     UnloadRenderTexture(target);
     UnloadImage(imagemRedimensionada);
     
@@ -83,7 +74,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
 
-        float fontSmall  = sh * 0.024f;  // Reduzido para melhor leitura
+        float fontSmall  = sh * 0.024f;  
         float fontMedium = sh * 0.034f;
         float fontLarge  = sh * 0.055f;
 
@@ -107,13 +98,11 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
             return;
 
         BeginDrawing();
-        ClearBackground((Color){ 25, 20, 15, 255 }); // Fundo mais escuro
+        ClearBackground((Color){ 25, 20, 15, 255 }); 
 
-        // Fundo medieval com borda
         DrawRectangle(30, 30, sw - 60, sh - 60, (Color){ 45, 35, 25, 240 });
         DrawRectangleLinesEx((Rectangle){30, 30, sw - 60, sh - 60}, 4, (Color){180, 140, 80, 255});
 
-        // Título centralizado
         const char *title = "GRANDES HERÓIS DO REINO";
         int titleWidth = MeasureText(title, fontLarge);
         DrawText(title, 
@@ -123,7 +112,6 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
             (Color){ 220, 180, 80, 255 }
         );
 
-        // Setas de navegação
         DrawRectangleRec(leftArrowRect, (Color){ 100, 75, 50, 255 });
         DrawRectangleRec(rightArrowRect, (Color){ 100, 75, 50, 255 });
         DrawRectangleLinesEx(leftArrowRect, 2, (Color){200, 160, 100, 255});
@@ -133,21 +121,19 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
         DrawText("<", leftArrowRect.x + (50 - arrowTextWidth)/2, leftArrowRect.y + 12, fontMedium, WHITE);
         DrawText(">", rightArrowRect.x + (50 - arrowTextWidth)/2, rightArrowRect.y + 12, fontMedium, WHITE);
 
-        // Indicador de página centralizado
         char pageText[20];
         sprintf(pageText, "%d / 4", currentPersonagem + 1);
         int pageWidth = MeasureText(pageText, fontMedium);
         DrawText(pageText, sw/2 - pageWidth/2, sh - 66, fontMedium, (Color){220, 200, 150, 255});
 
-        // Nome do personagem
         const char *nome;
-        const char *descricao[5]; // Array para cada linha da descrição
+        const char *descricao[5]; 
         Color nomeCor;
 
         switch (currentPersonagem) {
             case 0:
                 nome = "O CAVALEIRO";
-                nomeCor = (Color){255, 215, 0, 255}; // Dourado
+                nomeCor = (Color){255, 215, 0, 255}; 
                 descricao[0] = "Espada de aço templário";
                 descricao[1] = "Armadura de placas reais";
                 descricao[2] = "Proteção da linha de frente";
@@ -157,7 +143,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
 
             case 1:
                 nome = "O MAGO";
-                nomeCor = (Color){100, 200, 100, 255}; // Verde
+                nomeCor = (Color){100, 200, 100, 255}; 
                 descricao[0] = "Orbe dos elementos antigos";
                 descricao[1] = "Conhecimento arcano proibido";
                 descricao[2] = "Feitiços de eras esquecidas";
@@ -167,7 +153,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
 
             case 2:
                 nome = "O BARDO";
-                nomeCor = (Color){100, 150, 255, 255}; // Azul
+                nomeCor = (Color){100, 150, 255, 255}; 
                 descricao[0] = "Canções de batalha ancestral";
                 descricao[1] = "Alaúde das terras distantes";
                 descricao[2] = "Inspira coragem nos aliados";
@@ -177,7 +163,7 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
 
             default:
                 nome = "O PALADINO";
-                nomeCor = (Color){180, 100, 220, 255}; // Roxo
+                nomeCor = (Color){180, 100, 220, 255}; 
                 descricao[0] = "Escudo sagrado abençoado";
                 descricao[1] = "Cura pelas mãos divinas";
                 descricao[2] = "Fé inabalável no combate";
@@ -186,16 +172,13 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 break;
         }
 
-        // Nome centralizado
         int nomeWidth = MeasureText(nome, fontMedium);
         DrawText(nome, sw/2 - nomeWidth/2, 110, fontMedium, nomeCor);
 
-        // Área da imagem centralizada
         Rectangle imgBox = { sw/2 - 100, 150, 200, 200 };
         DrawRectangleRec(imgBox, (Color){ 80, 65, 45, 240 });
         DrawRectangleLinesEx(imgBox, 3, (Color){ 180, 150, 100, 255 });
 
-        // Imagem centralizada dentro da caixa
         if (personagens[currentPersonagem].img.id != 0) {
             Texture2D texture = personagens[currentPersonagem].img;
             float scale = 0.4f;
@@ -205,7 +188,6 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
             };
             DrawTextureEx(texture, position, 0, scale, WHITE);
         } else {
-            // Placeholder centralizado
             const char *placeholder = "⚔️";
             int placeholderWidth = MeasureText(placeholder, 40);
             DrawText(placeholder, 
@@ -215,12 +197,10 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                     (Color){160, 140, 100, 255});
         }
 
-        // Caixa da descrição
         Rectangle descBox = { 80, 350, sw - 160, sh - 430 };
         DrawRectangleRec(descBox, (Color){ 70, 55, 40, 230 });
         DrawRectangleLinesEx(descBox, 3, (Color){ 170, 140, 90, 255 });
 
-        // Título da descrição
         const char *descTitle = "HABILIDADES E CARACTERÍSTICAS";
         int descTitleWidth = MeasureText(descTitle, fontSmall * 1.1f);
         DrawText(descTitle, 
@@ -229,7 +209,6 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                 fontSmall * 1.1f, 
                 (Color){220, 190, 120, 255});
 
-        // Desenhar cada linha da descrição centralizada
         float lineSpacing = fontSmall * 1.6f;
         float startY = descBox.y + 50;
         
@@ -242,7 +221,6 @@ void ShowHeroesMenu(PersonagemInfo personagens[]) {
                     (Color){240, 230, 210, 255});
         }
 
-        // Botão voltar centralizado
         Color backColor = CheckCollisionPointRec(mousePos, backButtonRect)
             ? (Color){ 140, 100, 60, 255 }
             : (Color){ 110, 80, 50, 255 };
@@ -273,8 +251,8 @@ void ShowHowToPlayMenu() {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
 
-        float fontSmall  = sh * 0.022f;  // Menor para caber mais texto
-        float fontMedium = sh * 0.028f;  // Para títulos das seções
+        float fontSmall  = sh * 0.022f;  
+        float fontMedium = sh * 0.028f;  
         float fontLarge  = sh * 0.050f;
 
         backButtonRect = (Rectangle){ 40, sh - 80, 180, 50 };
@@ -290,11 +268,9 @@ void ShowHowToPlayMenu() {
         BeginDrawing();
         ClearBackground((Color){ 20, 15, 10, 255 });
 
-        // Moldura medieval
         DrawRectangle(25, 25, sw - 50, sh - 50, (Color){ 45, 35, 25, 245 });
         DrawRectangleLinesEx((Rectangle){25, 25, sw - 50, sh - 50}, 4, (Color){180, 140, 80, 255});
 
-        // Título centralizado
         const char *title = "COMO JOGAR:";
         int titleWidth = MeasureText(title, fontLarge);
         DrawText(title,
@@ -304,12 +280,10 @@ void ShowHowToPlayMenu() {
             (Color){ 220, 180, 80, 255 }
         );
 
-        // Caixa do texto com mais espaço
         Rectangle textBox = { 60, 140, sw - 120, sh - 250 };
         DrawRectangleRec(textBox, (Color){ 65, 50, 35, 235 });
         DrawRectangleLinesEx(textBox, 3, (Color){170, 140, 90, 255});
 
-        // Conteúdo organizado em seções
         struct Section {
             const char *title;
             const char *lines[6];
@@ -348,7 +322,7 @@ void ShowHowToPlayMenu() {
         float lineSpacing = fontSmall * 1.4f;
 
         for (int s = 0; s < numSections; s++) {
-            // Título da seção
+           
             int titleWidth = MeasureText(sections[s].title, fontMedium);
             DrawText(sections[s].title, 
                     textBox.x + (textBox.width - titleWidth)/2, 
@@ -358,9 +332,9 @@ void ShowHowToPlayMenu() {
             
             currentY += lineSpacing * 1.2f;
 
-            // Linhas da seção
+            
             for (int l = 0; l < sections[s].lineCount; l++) {
-                if (sections[s].lines[l][0] != '\0') { // Não desenhar linhas vazias
+                if (sections[s].lines[l][0] != '\0') { 
                     int lineWidth = MeasureText(sections[s].lines[l], fontSmall);
                     DrawText(sections[s].lines[l], 
                             textBox.x + (textBox.width - lineWidth)/2, 
@@ -373,13 +347,11 @@ void ShowHowToPlayMenu() {
             
             currentY += sectionSpacing;
             
-            // Divisória entre seções (exceto na última)
             if (s < numSections - 1) {
                 DrawRectangle(textBox.x + 40, currentY - sectionSpacing/2, textBox.width - 80, 2, (Color){150, 120, 80, 255});
             }
         }
 
-        // Provérbio final centralizado
         const char *proverbio = "Um bom estrategista vence batalhas, mas um grande líder conquista reinos!";
         int proverbioWidth = MeasureText(proverbio, fontSmall * 0.9f);
         DrawText(proverbio,
@@ -388,7 +360,6 @@ void ShowHowToPlayMenu() {
                 fontSmall * 0.9f,
                 (Color){180, 160, 120, 255});
 
-        // Botão VOLTAR centralizado
         Color backColor = CheckCollisionPointRec(mousePos, backButtonRect)
             ? (Color){ 140, 100, 60, 255 }
             : (Color){ 110, 80, 50, 255 };
@@ -435,11 +406,9 @@ void ShowRankingMenu() {
         BeginDrawing();
         ClearBackground((Color){ 20, 15, 10, 255 });
 
-        // Moldura medieval
         DrawRectangle(30, 30, sw - 60, sh - 60, (Color){ 45, 35, 25, 240 });
         DrawRectangleLinesEx((Rectangle){30, 30, sw - 60, sh - 60}, 4, (Color){180, 140, 80, 255});
 
-        // Título centralizado
         const char *title = "SALÃO DA FAMA DOS CAMPEÕES";
         int titleWidth = MeasureText(title, fontLarge);
         DrawText(title, 
@@ -448,7 +417,6 @@ void ShowRankingMenu() {
                 fontLarge, 
                 (Color){ 220, 180, 80, 255 });
         
-        // Conteúdo do ranking centralizado
         const char* ranking[] = {
             "⚔️ GRANDES FEITOS DOS HERÓIS ⚔️",
             "",
@@ -482,7 +450,6 @@ void ShowRankingMenu() {
                     textColor);
         }
         
-        // Botão voltar centralizado
         Color backColor = CheckCollisionPointRec(mousePos, backButtonRect) ? 
                         (Color){ 140, 100, 60, 255 } : (Color){ 110, 80, 50, 255 };
         
@@ -501,10 +468,6 @@ void ShowRankingMenu() {
     }
 }
 
-// ============================================================================
-// =============================== MENU PRINCIPAL =============================
-// ============================================================================
-
 MenuOption ShowMenu() {
     const char *options[MENU_TOTAL] = {
         "Start Game",
@@ -518,15 +481,8 @@ MenuOption ShowMenu() {
 
     Texture2D background = LoadTexture("resources/fundoMenu.png");
 
-    // ====================
-    // PERSONAGENS PERFIL
-    // ====================
     PersonagemInfo personagens[4];
 
-    // CONFIGURAÇÕES DE REDIMENSIONAMENTO - MODIFIQUE AQUI
-    // ====================================================
-    
-    // Configurações individuais para cada personagem
     typedef struct {
         const char* arquivo;
         int largura;
@@ -534,15 +490,12 @@ MenuOption ShowMenu() {
     } ConfigPersonagem;
     
     ConfigPersonagem configs[] = {
-        {"resources/Cavaleiro.png", 550, 550},   // Altere estes valores
-        {"resources/SapoMago.png",  530, 530},   // Altere estes valores  
-        {"resources/Bardo.png",     540, 540},   // Altere estes valores
-        {"resources/Paladino.png",  560, 560}    // Altere estes valores
+        {"resources/Cavaleiro.png", 550, 550},   
+        {"resources/SapoMago.png",  530, 530},   
+        {"resources/Bardo.png",     540, 540},   
+        {"resources/Paladino.png",  560, 560}    
     };
     
-    // ====================================================
-    // CARREGAMENTO E REDIMENSIONAMENTO DAS IMAGENS
-    // ====================================================
     
     printf("=== CARREGANDO E REDIMENSIONANDO IMAGENS ===\n");
     
@@ -551,11 +504,9 @@ MenuOption ShowMenu() {
         
         Texture2D texOriginal = LoadTexture(configs[i].arquivo);
         
-        // Verificar se o carregamento foi bem sucedido
         if (texOriginal.id == 0) {
             printf("ERRO: Não foi possível carregar %s\n", configs[i].arquivo);
             
-            // Criar uma textura placeholder
             Image placeholder = GenImageColor(configs[i].largura, configs[i].altura, (Color){100, 100, 100, 255});
             personagens[i].img = LoadTextureFromImage(placeholder);
             UnloadImage(placeholder);
@@ -566,14 +517,12 @@ MenuOption ShowMenu() {
                    configs[i].arquivo, texOriginal.width, texOriginal.height, 
                    configs[i].largura, configs[i].altura);
             
-            // CORREÇÃO: Usar a função correta que não inverte a imagem
             personagens[i].img = RedimensionarTexture(texOriginal, configs[i].largura, configs[i].altura);
             UnloadTexture(texOriginal);
             
             printf("Redimensionado para: %dx%d\n", personagens[i].img.width, personagens[i].img.height);
         }
         
-        // Atribuir nomes e descrições
         switch(i) {
             case 0:
                 personagens[i].nome = "Cavaleiro";
@@ -596,7 +545,6 @@ MenuOption ShowMenu() {
     
     printf("=== TODAS AS IMAGENS CARREGADAS ===\n");
 
-    // --- função local: prompt de nome integrado ao menu ---
     void ShowNamePromptMenu(void) {
         char buffer[64] = "";
         int len = 0;
@@ -615,7 +563,6 @@ MenuOption ShowMenu() {
             if (IsKeyPressed(KEY_ESCAPE)) { buffer[0]='\0'; done = true; }
 
             BeginDrawing();
-            // dim background
             DrawRectangle(0,0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.6f));
             const char *title = "DIGITE SEU NOME";
             int tw = MeasureText(title, 28);
@@ -638,9 +585,6 @@ MenuOption ShowMenu() {
         }
     }
 
-    // ====================================================
-    // LOOP PRINCIPAL DO MENU
-    // ====================================================
 
     while (!WindowShouldClose()) {
 
@@ -674,11 +618,11 @@ MenuOption ShowMenu() {
                 selected = 3;
                 continue;
             } else if (selected == MENU_EXIT) {
-                // Fechar o jogo quando Exit for selecionado
+                
                 CloseWindow();
                 exit(0);
             } else {
-                // Antes de iniciar, pedir nome (overlay)
+                
                 ShowNamePromptMenu();
                 break;
             }
@@ -721,7 +665,6 @@ MenuOption ShowMenu() {
         EndDrawing();
     }
 
-    // Liberar recursos
     for (int i = 0; i < 4; i++) {
         UnloadTexture(personagens[i].img);
     }

@@ -3,11 +3,10 @@
 #include "enemy.h"
 #include "tower.h"
 
-// Variável global do herói principal
 Hero hero = { 400, 300, 100 };
 
 Hero InitHero(int x, int y, int initialHealth) {
-    Hero h = { x, y, initialHealth };  // Mude 100 para initialHealth
+    Hero h = { x, y, initialHealth };  
     return h;
 }
 
