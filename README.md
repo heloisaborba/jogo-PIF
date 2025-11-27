@@ -74,6 +74,9 @@ raylib; <br>
 Depois de instalar todas as dependências, para rodar o código basta abrir o arquivo: cd ("caminho da pasta e nome do projeto clonado") <br>
 Ao fazer isso, escreva no WSL “./tower_defense” e aproveite o jogo!
 
+## video do jogo rodando
+[Assista ao Trailer do Jogo Aqui!](https://youtu.be/YhF9yTNmfJI?feature=shared)
+
 
 
 
